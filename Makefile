@@ -1,4 +1,4 @@
-.PHONY: build check clean deploy dev fmt help k3d-down k3d-up logs status stop test tunnel
+.PHONY: build check clean deploy fmt help k3d-down k3d-up logs status stop test tunnel
 .DEFAULT_GOAL := help
 
 CLUSTER_NAME = tiny-myrmidon
@@ -56,9 +56,6 @@ deploy: build k3d-up ## Build, import images and deploy to Kubernetes
 	@kubectl rollout status deployment/tiny-myrmidon-game --timeout=60s || \
 		$(call fail,Game pod failed to start.)
 	@kubectl get pods
-
-dev: ## Run the Rust API locally on port 3000
-	@cd api && cargo run
 
 fmt: ## Auto-format code
 	@cd api && cargo fmt --all
