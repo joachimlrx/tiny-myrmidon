@@ -1,0 +1,30 @@
+#joystick-base {
+  display: none;
+  position: fixed;
+  width: 120px;
+  height: 120px;
+  margin-left: -60px;
+  margin-top: -60px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.22) 0%, rgba(120, 53, 15, 0.45) 100%);
+  border: 2px solid rgba(251, 191, 36, 0.6);
+  pointer-events: none;
+  z-index: 10;
+  transform: translate3d(0, 0, 0);
+}
+
+#joystick-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 50px;
+  height: 50px;
+  margin-left: -25px;
+  margin-top: -25px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fde68a 0%, #d97706 100%);
+  border: 2px solid #fbbf24;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.7);
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+}

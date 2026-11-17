@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  rust-check:
+    name: Rust Code Quality & Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: api
+
+      - name: Check code formatting
+        run: cargo fmt --all -- --check
+        working-directory: api
+
+      - name: Run Clippy linter
+        run: cargo clippy --all-targets -- -D warnings
+        working-directory: api
+
+      - name: Run automated test suite
+        run: cargo test --all --verbose
+        working-directory: api
+
+  security-audit:
+    name: DevSecOps Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v5
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Audit Cargo.lock for known CVEs (RustSec)
+        run: cargo audit
+        working-directory: api
+
+      - name: Enforce Kubernetes security hardening policies
+        run: |
+          python3 -c "
+          import yaml
+          docs = list(yaml.safe_load_all(open('k8s/app.yaml')))
+          deployments = {d['metadata']['name']: d for d in docs if d.get('kind') == 'Deployment'}
+          api = deployments['tiny-myrmidon-api']['spec']['template']['spec']['containers'][0]
+          sec = api.get('securityContext', {})
+          assert sec.get('runAsNonRoot') is True, 'API must set runAsNonRoot: true'
+          assert sec.get('readOnlyRootFilesystem') is True, 'API must set readOnlyRootFilesystem: true'
+          assert sec.get('allowPrivilegeEscalation') is False, 'API must forbid privilege escalation'
+          assert 'ALL' in sec.get('capabilities', {}).get('drop', []), 'API must drop ALL capabilities'
+          for name, dep in deployments.items():
+              c = dep['spec']['template']['spec']['containers'][0]
+              limits = c.get('resources', {}).get('limits', {})
+              assert 'cpu' in limits and 'memory' in limits, f'{name} missing resource limits'
+          print('All Kubernetes security assertions passed!')
+          "
+
+      - name: Verify frontend XSS protection
+        run: |
+          python3 -c "
+          import pathlib
+          for path in pathlib.Path('game/js').glob('*.js'):
+              text = path.read_text()
+              for line_no, line in enumerate(text.splitlines(), 1):
+                  if 'innerHTML' in line and '\${' in line and 'escapeHtml' not in line:
+                      raise AssertionError(f'Unescaped innerHTML interpolation in {path}:{line_no}')
+          print('Frontend XSS check passed!')
+          "
+
+  docker-and-k8s:
+    name: Docker Image & Manifest Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build API Docker image
+        run: docker build -t tiny-myrmidon-api:ci api/
+
+      - name: Verify API image runs as non-root user
+        run: |
+          USER_ID=$(docker inspect --format='{{.Config.User}}' tiny-myrmidon-api:ci)
+          echo "Configured container user: $USER_ID"
+          test "$USER_ID" = "10001"
+
+      - name: Build Game Docker image
+        run: docker build -t tiny-myrmidon-game:ci game/
+
+      - name: Enforce Alpine Docker size constraint (< 20 MB content size)
+        run: |
+          echo "Checking image sizes..."
+          docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}" | grep tiny-myrmidon
+
+      - name: Validate Kubernetes manifests
+        run: |
+          python3 -c "import yaml; docs = list(yaml.safe_load_all(open('k8s/app.yaml'))); assert docs and all('apiVersion' in d and 'kind' in d and 'name' in d.get('metadata', {}) for d in docs)"

@@ -1,0 +1,15 @@
+export const ARENA_RADIUS = 27;
+export const SPAWN_DISTANCE = 20;
+export const SPAWN_INTERVAL_BASE = 1.2;
+export const SPAWN_INTERVAL_MIN = 0.25;
+export const SPAWN_LEVEL_SCALE = 0.07;
+export const MAX_JOYSTICK_RADIUS = 50;
+export const SPEAR_SPEED = 20;
+export const SPEAR_LIFETIME = 1.2;
+export const SPEAR_RANGE = 18;
+export const GEM_ATTRACT_RADIUS = 4.5;
+export const GEM_COLLECT_RADIUS = 0.9;
+export const GEM_ATTRACT_SPEED = 6;
+export const CAMERA_HEIGHT = 15;
+export const CAMERA_Z_OFFSET = 13;
+export const FRAME_DT_CAP = 0.05;

@@ -1,0 +1,124 @@
+# REST API Reference
+
+The Tiny Myrmidon backend exposes a lightweight JSON REST API for cluster health monitoring and persistent leaderboard records.
+
+**Base URL:**
+* Local Ingress: `http://localhost:8080`
+* Kubernetes Internal: `http://tiny-myrmidon-api:80`
+
+---
+
+## Endpoints Summary
+
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/health` | Healthcheck and service readiness probe | No |
+| `GET` | `/api/scores` | Retrieve top hero leaderboard scores | No |
+| `POST` | `/api/scores` | Record a new hero score | No |
+
+---
+
+## 1. Healthcheck
+
+Checks that the Axum application is healthy and responsive. Used by Kubernetes `livenessProbe` and `readinessProbe`.
+
+* **Method:** `GET`
+* **Path:** `/api/health`
+* **Response Status:** `200 OK`
+
+### Example Request
+```bash
+curl -s http://localhost:8080/api/health
+```
+
+### Example Response
+```json
+{
+  "service": "tiny-myrmidon-api",
+  "status": "ok"
+}
+```
+
+---
+
+## 2. Retrieve Leaderboard
+
+Returns the top 50 scores, sorted descending by score, with ties broken by wave reached.
+
+* **Method:** `GET`
+* **Path:** `/api/scores`
+* **Response Status:** `200 OK`
+
+### Example Request
+```bash
+curl -s http://localhost:8080/api/scores
+```
+
+### Example Response
+```json
+[
+  {
+    "player_name": "Hercules",
+    "score": 9999,
+    "wave": 15,
+    "created_at": 1794854386
+  },
+  {
+    "player_name": "Achilles",
+    "score": 5000,
+    "wave": 10,
+    "created_at": 1794854358
+  },
+  {
+    "player_name": "Patroclus",
+    "score": 3200,
+    "wave": 7,
+    "created_at": 1794854358
+  }
+]
+```
+
+---
+
+## 3. Submit Hero Score
+
+Records a new score in the leaderboard.
+
+* **Method:** `POST`
+* **Path:** `/api/scores`
+* **Content-Type:** `application/json`
+
+### Request Payload
+
+| Field | Type | Required | Constraints | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `player_name` | String | Yes | 1 to 30 characters after trimming | Name of the hero |
+| `score` | Integer | Yes | $\ge 0$ | Total points accumulated |
+| `wave` | Integer | Yes | $\ge 1$ | Wave/level reached |
+
+### Request Example
+```bash
+curl -i -X POST http://localhost:8080/api/scores \
+  -H "Content-Type: application/json" \
+  -d '{
+    "player_name": "Leonidas",
+    "score": 7450,
+    "wave": 11
+  }'
+```
+
+### Success Response (`201 Created`)
+```json
+{
+  "player_name": "Leonidas",
+  "score": 7450,
+  "wave": 11,
+  "created_at": 1794854900
+}
+```
+
+### Error Response (`400 Bad Request`)
+Returned if `player_name` is empty, contains only spaces, or exceeds 30 characters.
+```text
+HTTP/1.1 400 Bad Request
+```
