@@ -1,4 +1,4 @@
-import * as THREE from 'https://unpkg.com/three@0.169.0/build/three.module.js';
+import * as THREE from 'three';
 import { SPAWN_DISTANCE } from './config.js';
 
 export const enemies = [];

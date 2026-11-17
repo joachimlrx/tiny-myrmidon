@@ -1,4 +1,4 @@
-import * as THREE from 'https://unpkg.com/three@0.169.0/build/three.module.js';
+import * as THREE from 'three';
 import { SPEAR_SPEED, SPEAR_LIFETIME, SPEAR_RANGE } from './config.js';
 import { enemies } from './enemies.js';
 

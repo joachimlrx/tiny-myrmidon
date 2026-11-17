@@ -261,7 +261,7 @@
         </tbody>
       </table>
 
-      <button type="button" onclick="location.reload()" style="margin-top: 16px;">Fight Again</button>
+      <button type="button" id="restart-btn" style="margin-top: 16px;">Fight Again</button>
     </div>
   </div>
 
@@ -269,6 +269,16 @@
     <div id="joystick-knob"></div>
   </div>
 
+    <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.169.0/build/three.module.js"
+    },
+    "integrity": {
+      "https://unpkg.com/three@0.169.0/build/three.module.js": "sha384-qOubuRxWZ0I7rXTjcuhcKNHKvPM7q0ztN8/82sJnxnyKS0OXTeB5FsIcysc2T9EY"
+    }
+  }
+  </script>
   <script type="module" src="./js/loop.js"></script>
 </body>
 </html>

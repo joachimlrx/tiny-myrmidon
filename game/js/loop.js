@@ -1,4 +1,4 @@
-import * as THREE from 'https://unpkg.com/three@0.169.0/build/three.module.js';
+import * as THREE from 'three';
 import { scene, camera, renderer } from './scene.js';
 import { state } from './state.js';
 import { player, orbitalGroup, orbShieldMesh } from './player.js';
@@ -132,3 +132,5 @@ function loop(now) {
 }
 
 requestAnimationFrame(loop);
+
+document.getElementById("restart-btn")?.addEventListener("click", () => location.reload());

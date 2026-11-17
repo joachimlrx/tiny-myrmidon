@@ -315,3 +315,45 @@ async fn leaderboard_truncation_limits_to_max_entries() {
 
     assert_eq!(array.len(), MAX_LEADERBOARD_ENTRIES);
 }
+
+#[tokio::test]
+async fn rate_limit_is_isolated_per_client_ip_and_security_headers_are_present() {
+    let app = create_app(AppState::empty());
+
+    for i in 0..MAX_SUBMISSIONS_PER_WINDOW {
+        let payload = json!({
+            "player_name": format!("Attacker_{}", i),
+            "score": 100,
+            "wave": 1
+        });
+        let req = Request::builder()
+            .method("POST")
+            .uri("/api/scores")
+            .header("content-type", "application/json")
+            .header("x-forwarded-for", "203.0.113.10, 10.42.0.1")
+            .body(Body::from(serde_json::to_vec(&payload).unwrap()))
+            .unwrap();
+        let res = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::CREATED);
+        assert_eq!(
+            res.headers().get("x-content-type-options").unwrap(),
+            "nosniff"
+        );
+        assert_eq!(res.headers().get("x-frame-options").unwrap(), "DENY");
+    }
+
+    let legit_payload = json!({
+        "player_name": "Odysseus",
+        "score": 4200,
+        "wave": 8
+    });
+    let legit_req = Request::builder()
+        .method("POST")
+        .uri("/api/scores")
+        .header("content-type", "application/json")
+        .header("x-forwarded-for", "198.51.100.42")
+        .body(Body::from(serde_json::to_vec(&legit_payload).unwrap()))
+        .unwrap();
+    let legit_res = app.oneshot(legit_req).await.unwrap();
+    assert_eq!(legit_res.status(), StatusCode::CREATED);
+}

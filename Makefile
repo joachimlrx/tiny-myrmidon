@@ -1,4 +1,4 @@
-.PHONY: build check clean deploy fmt help k3d-down k3d-up logs status stop test tunnel
+.PHONY: build check clean deploy fmt help k3d-up logs status stop tunnel
 .DEFAULT_GOAL := help
 
 CLUSTER_NAME = tiny-myrmidon
@@ -18,7 +18,7 @@ build: ## Build minimal Alpine Docker images
 	@docker build -t tiny-myrmidon-game:v1 game/ || \
 		$(call fail,Failed to build Game image.)
 
-check: ## Run format checks, linter, and tests
+check: ## Run format checks, linter, ands
 	@echo "==> Checking formatting..."
 	@cd api && cargo fmt --all -- --check || \
 		$(call fail,Run 'make fmt' to fix formatting.)
@@ -64,11 +64,7 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
-k3d-down: ## Delete local k3d cluster
-	@k3d cluster delete $(CLUSTER_NAME) || \
-		$(call fail,Cluster '$(CLUSTER_NAME)' not found.)
-
-k3d-up: ## Create or start local k3d cluster
+k3d-up:
 	@k3d cluster list $(CLUSTER_NAME) >/dev/null 2>&1 || \
 		k3d cluster create $(CLUSTER_NAME) --port "$(PORT):80@loadbalancer" || \
 		$(call fail,Failed to create k3d cluster.)
@@ -94,7 +90,7 @@ stop: ## Stop local k3d cluster without deleting it
 	@echo "==> Stopping k3d cluster..."
 	-@k3d cluster stop $(CLUSTER_NAME) 2>/dev/null || true
 
-test: ## Run API tests
+test: ## Run APIs
 	@cd api && cargo test --all
 
 tunnel: ## Expose game to mobile devices with instant QR code (Ctrl+C to stop)
