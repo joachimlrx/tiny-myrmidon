@@ -108,7 +108,10 @@ async fn malformed_json_returns_a_consistent_json_error() {
 
     let response = app.oneshot(request).await.unwrap();
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(response.headers().get(header::CONTENT_TYPE).unwrap(), "application/json");
+    assert_eq!(
+        response.headers().get(header::CONTENT_TYPE).unwrap(),
+        "application/json"
+    );
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let error: Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(error["error"], "invalid_json");

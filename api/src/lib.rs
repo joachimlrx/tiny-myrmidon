@@ -20,7 +20,10 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
-use tokio::{io::AsyncWriteExt, sync::{Mutex, RwLock}};
+use tokio::{
+    io::AsyncWriteExt,
+    sync::{Mutex, RwLock},
+};
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
     trace::TraceLayer,

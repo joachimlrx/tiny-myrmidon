@@ -25,7 +25,11 @@ struct ApiError {
 
 impl ApiError {
     fn new(status: StatusCode, code: &'static str, message: impl Into<String>) -> Self {
-        Self { status, code, message: message.into() }
+        Self {
+            status,
+            code,
+            message: message.into(),
+        }
     }
 }
 
@@ -33,8 +37,12 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         (
             self.status,
-            Json(ApiErrorBody { error: self.code, message: self.message }),
-        ).into_response()
+            Json(ApiErrorBody {
+                error: self.code,
+                message: self.message,
+            }),
+        )
+            .into_response()
     }
 }
 
@@ -109,9 +117,9 @@ pub async fn add_score(
             "Request body must be valid JSON containing player_name, score, and wave.",
         )
     })?;
-    let valid_name = payload.validate().map_err(|message| {
-        ApiError::new(StatusCode::BAD_REQUEST, "invalid_score", message)
-    })?;
+    let valid_name = payload
+        .validate()
+        .map_err(|message| ApiError::new(StatusCode::BAD_REQUEST, "invalid_score", message))?;
 
     let entry = ScoreEntry::new(valid_name, payload.score, payload.wave);
 
