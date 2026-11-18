@@ -8,8 +8,8 @@ export const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xa9d5ef);
 scene.fog = new THREE.FogExp2(0xd6e8f1, 0.0042);
 
-export const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 150);
-camera.position.set(0, 10.8, 9.5);
+export const camera = new THREE.PerspectiveCamera(43, innerWidth / innerHeight, 0.1, 150);
+camera.position.set(0, 7.85, 7.8);
 
 export const renderer = new THREE.WebGLRenderer({
   antialias: true,
@@ -20,7 +20,7 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.12;
+renderer.toneMappingExposure = 0.94;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.physicallyCorrectLights = true;
 document.body.appendChild(renderer.domElement);
@@ -36,15 +36,15 @@ export const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 composer.addPass(new UnrealBloomPass(
   new THREE.Vector2(innerWidth, innerHeight),
-  0.42,
-  0.34,
-  0.86
+  0.08,
+  0.12,
+  1.18
 ));
 composer.setSize(innerWidth, innerHeight);
 
-scene.add(new THREE.HemisphereLight(0xe7f5ff, 0x9b7950, 1.75));
+scene.add(new THREE.HemisphereLight(0xdce8f0, 0x76624b, 1.05));
 
-const sun = new THREE.DirectionalLight(0xffe2b5, 3.0);
+const sun = new THREE.DirectionalLight(0xffe4c2, 2.1);
 sun.position.set(-18, 34, 12);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
@@ -58,11 +58,11 @@ sun.shadow.bias = -0.00018;
 sun.shadow.normalBias = 0.028;
 scene.add(sun);
 
-const rim = new THREE.DirectionalLight(0xfff1d9, 1.15);
+const rim = new THREE.DirectionalLight(0xd7e2ec, 0.42);
 rim.position.set(13, 10, -16);
 scene.add(rim);
 
-const warmFill = new THREE.PointLight(0xffe3bd, 6, 32, 2);
+const warmFill = new THREE.PointLight(0xe6c9a8, 1.1, 32, 2);
 warmFill.position.set(0, 5, 0);
 scene.add(warmFill);
 
@@ -72,7 +72,7 @@ function createStoneTexture() {
   canvas.height = 512;
   const context = canvas.getContext('2d');
 
-  context.fillStyle = '#c7b99f';
+  context.fillStyle = '#b7a98f';
   context.fillRect(0, 0, 512, 512);
 
   for (let index = 0; index < 22000; index += 1) {
@@ -111,24 +111,24 @@ bumpTexture.colorSpace = THREE.NoColorSpace;
 bumpTexture.needsUpdate = true;
 
 const gold = new THREE.MeshPhysicalMaterial({
-  color: 0xc79b5e,
-  metalness: 0.9,
-  roughness: 0.22,
-  clearcoat: 0.7,
-  clearcoatRoughness: 0.2,
-  envMapIntensity: 1.3,
+  color: 0xb98a54,
+  metalness: 0.78,
+  roughness: 0.4,
+  clearcoat: 0.24,
+  clearcoatRoughness: 0.42,
+  envMapIntensity: 0.72,
   emissive: 0x211405,
-  emissiveIntensity: 0.22
+  emissiveIntensity: 0.06
 });
 const paleGold = new THREE.MeshPhysicalMaterial({
-  color: 0xe2c58d,
-  metalness: 0.88,
-  roughness: 0.19,
-  clearcoat: 0.8,
-  envMapIntensity: 1.45
+  color: 0xc9aa79,
+  metalness: 0.72,
+  roughness: 0.38,
+  clearcoat: 0.28,
+  envMapIntensity: 0.78
 });
 const stone = new THREE.MeshPhysicalMaterial({
-  color: 0xcbbd9f,
+  color: 0xb9aa90,
   map: stoneTexture,
   bumpMap: bumpTexture,
   bumpScale: 0.085,
@@ -136,7 +136,7 @@ const stone = new THREE.MeshPhysicalMaterial({
   metalness: 0.18
 });
 const darkStone = new THREE.MeshPhysicalMaterial({
-  color: 0x9d8c70,
+  color: 0x88765e,
   map: stoneTexture,
   bumpMap: bumpTexture,
   bumpScale: 0.12,
@@ -225,7 +225,7 @@ const sigilCore = new THREE.Mesh(
     roughness: 0.16,
     clearcoat: 0.9,
     emissive: 0x74400c,
-    emissiveIntensity: 0.72
+    emissiveIntensity: 0.18
   })
 );
 sigilCore.position.y = 0.43;
@@ -290,7 +290,7 @@ for (let index = 0; index < 10; index += 1) {
   flame.position.y = 1.54;
   const innerFlame = new THREE.Mesh(new THREE.ConeGeometry(0.105, 0.43, 8), innerFlameMaterial);
   innerFlame.position.y = 1.5;
-  const light = new THREE.PointLight(0xffa45e, 1.35, 10, 2);
+  const light = new THREE.PointLight(0xffa45e, 0.48, 8, 2);
   light.position.y = 1.68;
 
   brazier.add(stem, bowl, flame, innerFlame, light);
@@ -310,7 +310,7 @@ for (let index = 0; index < 2; index += 1) {
     roughness: 0.95,
     side: THREE.DoubleSide,
     emissive: index ? 0x101d28 : 0x260b0e,
-    emissiveIntensity: 0.28
+    emissiveIntensity: 0.06
   });
   const cloth = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 2.9, 8, 10), clothMaterial);
   cloth.position.set(0, 4.55, 0);
@@ -334,7 +334,7 @@ export function updateScene(dt, time) {
     const pulse = Math.sin(time * 8 + torch.phase);
     torch.flame.scale.set(0.9 + pulse * 0.08, 0.88 + pulse * 0.2, 0.9 + pulse * 0.08);
     torch.innerFlame.scale.y = 0.85 + Math.sin(time * 11 + torch.phase) * 0.12;
-    torch.light.intensity = 1.15 + Math.sin(time * 10 + torch.phase) * 0.24;
+    torch.light.intensity = 0.42 + Math.sin(time * 10 + torch.phase) * 0.08;
   }
   sigilCore.rotation.y += dt * 0.2;
   sigilCore.position.y = 0.43 + Math.sin(time * 1.6) * 0.045;

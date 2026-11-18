@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import {
   ARENA_RADIUS,
   FRAME_DT_CAP,
+  CAMERA_TARGET_HEIGHT,
   MAX_ENEMIES,
   SPAWN_INTERVAL_BASE,
   SPAWN_INTERVAL_MIN,
@@ -129,7 +130,11 @@ function updatePlayerMovement(deltaTime) {
 
 /** Keep the camera focused on the hero while allowing mouse orbit and zoom. */
 function updateCamera(deltaTime) {
-  cameraTarget.set(player.position.x, 0, player.position.z);
+  cameraTarget.set(
+    player.position.x,
+    CAMERA_TARGET_HEIGHT,
+    player.position.z,
+  );
   cameraControls.update(cameraTarget, deltaTime);
 }
 

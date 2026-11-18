@@ -10,9 +10,9 @@ export const gems = [];
 
 const gemGeometry = new THREE.OctahedronGeometry(0.23, 1);
 const gemMaterial = new THREE.MeshStandardMaterial({
-  color: 0x6fd7ff,
-  emissive: 0x087bb2,
-  emissiveIntensity: 1.5,
+  color: 0x65b6ca,
+  emissive: 0x075b78,
+  emissiveIntensity: 0.72,
   metalness: 0.38,
   roughness: 0.24,
 });

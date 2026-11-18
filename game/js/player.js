@@ -34,24 +34,25 @@ function makeClothTexture() {
 }
 
 const bronze = new THREE.MeshPhysicalMaterial({
-  color: 0x9d6336,
-  metalness: 0.88,
-  roughness: 0.24,
-  clearcoat: 0.62,
-  clearcoatRoughness: 0.2,
-  envMapIntensity: 1.15
+  color: 0x8d603e,
+  metalness: 0.72,
+  roughness: 0.42,
+  clearcoat: 0.2,
+  clearcoatRoughness: 0.5,
+  envMapIntensity: 0.68
 });
 const gold = new THREE.MeshPhysicalMaterial({
-  color: 0xe1bc78,
-  metalness: 0.94,
-  roughness: 0.2,
-  clearcoat: 0.7,
-  envMapIntensity: 1.3,
+  color: 0xc8a16b,
+  metalness: 0.82,
+  roughness: 0.36,
+  clearcoat: 0.24,
+  clearcoatRoughness: 0.45,
+  envMapIntensity: 0.76,
   emissive: 0x241304,
-  emissiveIntensity: 0.12
+  emissiveIntensity: 0.04
 });
 const red = new THREE.MeshStandardMaterial({
-  color: 0xb13b4b,
+  color: 0x782f39,
   map: makeClothTexture(),
   roughness: 0.92,
   side: THREE.DoubleSide
@@ -62,9 +63,9 @@ const dark = new THREE.MeshStandardMaterial({
   roughness: 0.68
 });
 const skin = new THREE.MeshPhysicalMaterial({
-  color: 0xb98162,
-  roughness: 0.62,
-  clearcoat: 0.12
+  color: 0xa9785d,
+  roughness: 0.82,
+  clearcoat: 0.025
 });
 const black = new THREE.MeshStandardMaterial({ color: 0x11151c, roughness: 0.88 });
 
@@ -244,10 +245,10 @@ scene.add(player);
 
 export const orbitalGroup = new THREE.Group();
 const orbitalMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0xb7d4e8,
-  metalness: 0.9,
-  roughness: 0.18,
-  clearcoat: 0.7
+  color: 0x91a9b5,
+  metalness: 0.64,
+  roughness: 0.4,
+  clearcoat: 0.22
 });
 export const orbShieldMesh = mesh(
   orbitalGroup,
@@ -319,6 +320,6 @@ export function updatePlayerAnimation(dt, moving, state) {
   data.body.position.x = data.hitTimer > 0 ? Math.sin(data.hitTimer * 48) * 0.055 : 0;
   data.shadow.material.opacity = 0.42 + (moving ? Math.sin(data.walkPhase) * 0.04 : 0);
 
-  bronze.emissive.setHex(state.upgradeAuraTimer > 0 ? 0x4b2608 : 0x000000);
-  gold.emissiveIntensity = state.upgradeAuraTimer > 0 ? 0.48 : 0.12;
+  bronze.emissive.setHex(state.upgradeAuraTimer > 0 ? 0x2b190d : 0x000000);
+  gold.emissiveIntensity = state.upgradeAuraTimer > 0 ? 0.18 : 0.035;
 }

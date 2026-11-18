@@ -44,11 +44,11 @@ const profiles = {
 const effects = [];
 const metal = (color, roughness, metalness = 0.72) => new THREE.MeshPhysicalMaterial({
   color,
-  roughness,
-  metalness,
-  clearcoat: 0.45,
-  clearcoatRoughness: 0.24,
-  envMapIntensity: 1
+  roughness: Math.max(roughness, 0.38),
+  metalness: Math.min(metalness, 0.76),
+  clearcoat: 0.18,
+  clearcoatRoughness: 0.48,
+  envMapIntensity: 0.68
 });
 
 function part(parent, geometry, material, position, rotation) {
@@ -77,7 +77,8 @@ function makeEnemy(type) {
   });
   const skin = new THREE.MeshPhysicalMaterial({
     color: isHarpy ? 0x788092 : isCyclops ? 0x9d775f : 0x98725d,
-    roughness: 0.68
+    roughness: 0.84,
+    clearcoat: 0.025
   });
   const plumeMaterial = new THREE.MeshStandardMaterial({
     color: isHarpy ? 0x37445c : 0x942c3d,
@@ -87,7 +88,7 @@ function makeEnemy(type) {
   const eyeMaterial = new THREE.MeshStandardMaterial({
     color: 0xf4c36a,
     emissive: 0xc66a18,
-    emissiveIntensity: 1.15
+    emissiveIntensity: 0.34
   });
 
   const body = new THREE.Group();

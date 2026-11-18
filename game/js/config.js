@@ -23,6 +23,7 @@ export const GEM_COLLECT_RADIUS = 1;
 export const GEM_ATTRACT_SPEED = 8;
 
 // Camera and frame timing.
-export const CAMERA_HEIGHT = 10.8;
-export const CAMERA_Z_OFFSET = 9.5;
+export const CAMERA_HEIGHT = 6.7;
+export const CAMERA_Z_OFFSET = 7.8;
+export const CAMERA_TARGET_HEIGHT = 1.05;
 export const FRAME_DT_CAP = 0.04;

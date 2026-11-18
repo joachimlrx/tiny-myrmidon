@@ -2,10 +2,10 @@ import * as THREE from 'three';
 
 import { CAMERA_HEIGHT, CAMERA_Z_OFFSET } from './config.js';
 
-const MIN_CAMERA_DISTANCE = 8.5;
-const MAX_CAMERA_DISTANCE = 23;
-const MIN_CAMERA_PITCH = 0.28;
-const MAX_CAMERA_PITCH = 1.28;
+const MIN_CAMERA_DISTANCE = 6.5;
+const MAX_CAMERA_DISTANCE = 20;
+const MIN_CAMERA_PITCH = 0.3;
+const MAX_CAMERA_PITCH = 1.18;
 const MOUSE_ROTATION_SPEED = 0.005;
 const MOUSE_PITCH_SPEED = 0.004;
 const CAMERA_SMOOTHING = 5;
