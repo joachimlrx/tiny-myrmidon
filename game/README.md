@@ -26,7 +26,7 @@ The game does not require a separate JavaScript build step.
 | `js/camera-controls.js` | Mouse camera orbit, zoom, and camera-relative movement directions |
 | `js/loop.js` | Coordinates all systems on every animation frame |
 | `js/scene.js` | Three.js scene, lighting, camera, environment, and rendering |
-| `js/player.js` | Player model and character animations |
+| `js/player.js` | Player model, articulated limbs, and weapon stances |
 | `js/enemies.js` | Enemy creation, movement, damage, and defeat handling |
 | `js/weapons.js` | Spear throws and close-range spear thrusts |
 | `js/gems.js` | Experience orbs, attraction, and level progression |
@@ -58,7 +58,8 @@ While the game is paused or over, gameplay updates stop but the scene continues 
 - To change spear attacks, edit `weapons.js`.
 - To change the hero model or its animations, edit `player.js`.
 - To change the arena, lighting, or rendering, edit `scene.js`.
-- To change the mouse camera behaviour, edit `camera-controls.js`.
+- To change the mouse camera behaviour or sensitivity, edit `camera-controls.js`.
+- To change obstacle collision radii, edit `arenaObstacles` in `scene.js` and the collision resolution in `loop.js` and `enemies.js`.
 - To change upgrades or progression, edit `upgrades.js` and `gems.js`.
 - To change the title screen, edit `index.html` and `styles/menu.css`.
 - To change score submission or leaderboard rendering, edit `leaderboard.js`.
@@ -82,6 +83,22 @@ Keyboard and joystick input are first read as directions on the screen.
 - `D` moves towards the right of the screen.
 
 The same conversion is applied to joystick input. WASD and arrow-key alternatives are also supported.
+
+## Character Animation and Weapon Grip
+
+The player uses a procedural joint hierarchy for hips, knees, feet, shoulders, and elbows. Locomotion blends between idle breathing and an alternating gait. Attack animations have anticipation, a strike phase, and recovery.
+
+- Hold `Shift` to use the spear one-handed and keep the shield in a forward guard.
+- Release `Shift` to return to a two-handed spear grip and stow the physical shield on the back.
+- The Orbital Aegis upgrade is represented by an energy shard rather than a second physical shield.
+
+Enemies use articulated limbs, telegraphed attacks, hit reactions, and short recovery windows.
+
+## Collision Model
+
+The arena uses circular gameplay colliders for braziers and outer columns. The player and enemies are pushed out of these obstacles, and enemy groups separate instead of occupying the same space. Enemies no longer damage the player merely by touching them: their attack animation must reach its strike phase.
+
+The player root stays on the arena ground plane. Feet use separate joints so the gait can be tuned without moving the entire character through the floor. This is a lightweight gameplay collision model, not a full rigid-body simulation.
 
 ## Score Submission
 

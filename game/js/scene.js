@@ -244,11 +244,18 @@ for (let index = 0; index < 24; index += 1) {
   scene.add(rune);
 }
 
+export const arenaObstacles = [];
+
 const columnCount = 14;
 for (let index = 0; index < columnCount; index += 1) {
   const angle = index / columnCount * Math.PI * 2;
   const column = new THREE.Group();
   column.position.set(Math.cos(angle) * 26.15, 0, Math.sin(angle) * 26.15);
+  arenaObstacles.push({
+    x: column.position.x,
+    z: column.position.z,
+    radius: 0.82
+  });
   column.rotation.y = -angle;
 
   const base = new THREE.Mesh(new THREE.CylinderGeometry(0.78, 0.92, 0.34, 20), darkStone);
@@ -281,6 +288,11 @@ for (let index = 0; index < 10; index += 1) {
   const angle = index / 10 * Math.PI * 2;
   const brazier = new THREE.Group();
   brazier.position.set(Math.cos(angle) * 20.4, 0, Math.sin(angle) * 20.4);
+  arenaObstacles.push({
+    x: brazier.position.x,
+    z: brazier.position.z,
+    radius: 0.48
+  });
 
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.15, 0.95, 12), gold);
   stem.position.y = 0.48;

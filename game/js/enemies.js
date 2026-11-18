@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { SPAWN_DISTANCE, ENEMY_SPAWN_RADIUS, MAX_ENEMIES } from './config.js';
-import { camera } from './scene.js';
+import { camera, arenaObstacles } from './scene.js';
 import { triggerPlayerHit } from './player.js';
 
 export const enemies = [];
@@ -158,28 +158,44 @@ function makeEnemy(type) {
   const legs = [];
   const arms = [];
   for (const side of [-1, 1]) {
-    const leg = new THREE.Group();
-    leg.position.set(side * (isCyclops ? 0.32 : 0.2), isCyclops ? 0.47 : 0.48, 0);
-    root.add(leg);
-    part(leg, new THREE.CapsuleGeometry(isCyclops ? 0.17 : 0.105, isCyclops ? 0.48 : 0.36, 5, 12), dark, [0, -0.23, 0]);
-    part(leg, new THREE.CapsuleGeometry(isCyclops ? 0.18 : 0.115, isCyclops ? 0.28 : 0.22, 5, 12), armor, [0, -0.2, 0.04]);
-    part(leg, new THREE.BoxGeometry(isCyclops ? 0.39 : 0.28, 0.16, 0.38), dark, [0, -0.48, 0.1]);
-    legs.push(leg);
+    const hip = new THREE.Group();
+    hip.position.set(side * (isCyclops ? 0.32 : 0.2), isCyclops ? 0.47 : 0.48, 0);
+    root.add(hip);
+    part(hip, new THREE.CapsuleGeometry(isCyclops ? 0.17 : 0.105, isCyclops ? 0.34 : 0.25, 5, 12), dark, [0, -0.12, 0]);
 
-    const arm = new THREE.Group();
-    arm.position.set(side * (isCyclops ? 0.67 : 0.42), 0.22, 0);
-    body.add(arm);
-    part(arm, new THREE.CapsuleGeometry(isCyclops ? 0.17 : 0.105, isCyclops ? 0.46 : 0.38, 5, 12), skin, [0, -0.2, 0]);
-    part(arm, new THREE.CylinderGeometry(isCyclops ? 0.18 : 0.13, isCyclops ? 0.16 : 0.11, 0.23, 14), trim, [0, -0.36, 0.02], [0, 0, Math.PI / 2]);
-    arms.push(arm);
+    const knee = new THREE.Group();
+    knee.position.y = isCyclops ? -0.27 : -0.24;
+    hip.add(knee);
+    part(knee, new THREE.SphereGeometry(isCyclops ? 0.17 : 0.105, 14, 10), armor, [0, 0, 0.035]);
+    part(knee, new THREE.CapsuleGeometry(isCyclops ? 0.14 : 0.09, isCyclops ? 0.24 : 0.15, 5, 12), dark, [0, -0.11, 0.02]);
+
+    const foot = new THREE.Group();
+    foot.position.set(0, isCyclops ? -0.25 : -0.21, 0.04);
+    knee.add(foot);
+    part(foot, new THREE.BoxGeometry(isCyclops ? 0.35 : 0.24, 0.14, 0.31), dark, [0, 0.01, 0.105]);
+    legs.push({ hip, knee, foot, side });
+
+    const shoulder = new THREE.Group();
+    shoulder.position.set(side * (isCyclops ? 0.67 : 0.42), 0.22, 0);
+    body.add(shoulder);
+    part(shoulder, new THREE.CapsuleGeometry(isCyclops ? 0.17 : 0.105, isCyclops ? 0.38 : 0.3, 5, 12), skin, [0, -0.14, 0]);
+    part(shoulder, new THREE.SphereGeometry(isCyclops ? 0.2 : 0.15, 16, 12), armor, [0, 0.035, 0]);
+
+    const elbow = new THREE.Group();
+    elbow.position.y = isCyclops ? -0.31 : -0.27;
+    shoulder.add(elbow);
+    part(elbow, new THREE.CapsuleGeometry(isCyclops ? 0.15 : 0.09, isCyclops ? 0.3 : 0.22, 5, 12), skin, [0, -0.12, 0.025]);
+    part(elbow, new THREE.CylinderGeometry(isCyclops ? 0.17 : 0.12, isCyclops ? 0.15 : 0.105, 0.2, 14), trim, [0, -0.12, 0.045], [0, 0, Math.PI / 2]);
+    arms.push({ shoulder, elbow, side });
   }
 
   let shield = null;
+  let shieldRig = null;
   let weapon = null;
   const wings = [];
 
   if (!isHarpy) {
-    const shieldRig = new THREE.Group();
+    shieldRig = new THREE.Group();
     shieldRig.position.set(isCyclops ? -0.86 : -0.49, 0.66, 0.2);
     body.add(shieldRig);
     const radius = isCyclops ? 0.63 : 0.41;
@@ -234,15 +250,25 @@ function makeEnemy(type) {
     archetype: type,
     colliderRadius: profile.radius * profile.scale,
     body,
+    head,
+    baseBodyHeight: isCyclops ? 1.16 : 0.91,
     legs,
     arms,
     wings,
     weapon,
     shield,
+    shieldRig,
     bar,
     fill,
     knockback: new THREE.Vector3(),
     phase: Math.random() * Math.PI * 2,
+    animationTime: 0,
+    moveBlend: 0,
+    attackTimer: 0,
+    attackDuration: isCyclops ? 1.12 : isHarpy ? 0.76 : 0.92,
+    attackCooldown: 0.25 + Math.random() * 0.55,
+    attackHit: false,
+    staggerTimer: 0,
     flash: 0,
     shieldHp: profile.shield,
     baseMaterials: [armor, trim, dark, cloth, skin, plumeMaterial],
@@ -347,6 +373,8 @@ export function applyEnemyDamage(enemy, damage, state, scene, spawnGem, directio
   }
 
   data.flash = 0.15;
+  data.staggerTimer = Math.max(data.staggerTimer, enemy.archetype === 'cyclops' ? 0.18 : 0.24);
+  data.attackTimer = Math.max(0, data.attackTimer - 0.14);
   data.baseMaterials.forEach(material => {
     material.emissive.setHex(0x68161d);
     material.emissiveIntensity = 0.95;
@@ -400,7 +428,224 @@ export function updateEnemyEffects(dt, scene) {
   }
 }
 
+function pushOutOfObstacles(position, radius) {
+  for (const obstacle of arenaObstacles) {
+    const dx = position.x - obstacle.x;
+    const dz = position.z - obstacle.z;
+    const distanceSquared = dx * dx + dz * dz;
+    const minimumDistance = radius + obstacle.radius;
+
+    if (distanceSquared >= minimumDistance * minimumDistance) continue;
+
+    const distance = Math.sqrt(Math.max(distanceSquared, 1e-8));
+    const normalX = distance > 1e-4 ? dx / distance : 1;
+    const normalZ = distance > 1e-4 ? dz / distance : 0;
+    const penetration = minimumDistance - distance;
+    position.x += normalX * penetration;
+    position.z += normalZ * penetration;
+  }
+}
+
+function damagePlayer(state, enemy, player, direction) {
+  if (state.playerHitTimer > 0) return;
+
+  state.hp = Math.max(0, state.hp - enemy.contactDamage);
+  state.playerHitTimer = 0.78;
+  triggerPlayerHit();
+  player.position.addScaledVector(direction, -1.15);
+
+  if (state.hp <= 0 && !state.over) {
+    state.over = true;
+    state.paused = true;
+    document.getElementById('final-score').textContent =
+      'Reached Wave ' + state.level + ' with ' + state.kills +
+      ' enemies defeated. Final Score: ' + state.score.toLocaleString();
+    document.getElementById('gameover-modal').classList.add('is-visible');
+    import('./leaderboard.js').then(({ loadLeaderboard }) => loadLeaderboard());
+  }
+}
+
 export function updateEnemies(dt, state, scene, player) {
+  state.playerHitTimer = Math.max(0, state.playerHitTimer - dt);
+
+  for (const enemy of enemies) {
+    const data = enemy.userData;
+    const toPlayer = new THREE.Vector3().subVectors(player.position, enemy.position).setY(0);
+    let distance = toPlayer.length();
+
+    if (distance > 0.001) {
+      toPlayer.normalize();
+      const targetAngle = Math.atan2(toPlayer.x, toPlayer.z);
+      const angleDelta = THREE.MathUtils.euclideanModulo(
+        targetAngle - enemy.rotation.y + Math.PI,
+        Math.PI * 2
+      ) - Math.PI;
+      enemy.rotation.y += angleDelta * (1 - Math.exp(-9 * dt));
+
+      const stoppingDistance = data.colliderRadius + player.userData.colliderRadius + 0.68;
+      if (distance > stoppingDistance) {
+        enemy.position.addScaledVector(toPlayer, enemy.speed * dt);
+      }
+    }
+
+    enemy.position.addScaledVector(data.knockback, dt);
+    pushOutOfObstacles(enemy.position, data.colliderRadius * 0.82);
+
+    let separationX = 0;
+    let separationZ = 0;
+    for (const other of enemies) {
+      if (other === enemy) continue;
+      const dx = enemy.position.x - other.position.x;
+      const dz = enemy.position.z - other.position.z;
+      const distanceSquared = dx * dx + dz * dz;
+      const minimumGap = (data.colliderRadius + other.userData.colliderRadius) * 0.88;
+
+      if (distanceSquared > 1e-6 && distanceSquared < minimumGap * minimumGap) {
+        const separationDistance = Math.sqrt(distanceSquared);
+        const push = (minimumGap - separationDistance) / minimumGap;
+        separationX += dx / separationDistance * push;
+        separationZ += dz / separationDistance * push;
+      }
+    }
+
+    enemy.position.x += separationX * dt * 4.2;
+    enemy.position.z += separationZ * dt * 4.2;
+    data.knockback.multiplyScalar(Math.exp(-7.5 * dt));
+
+    const playerCollisionDistance = data.colliderRadius + player.userData.colliderRadius * 0.82;
+    if (distance < playerCollisionDistance && distance > 1e-4) {
+      const overlap = playerCollisionDistance - distance;
+      enemy.position.addScaledVector(toPlayer, -overlap * 0.72);
+      player.position.addScaledVector(toPlayer, overlap * 0.28);
+      toPlayer.subVectors(player.position, enemy.position).setY(0).normalize();
+      distance = enemy.position.distanceTo(player.position);
+    }
+
+    data.animationTime += dt;
+    data.phase += dt * (3.2 + enemy.speed * 2.35);
+    data.moveBlend = THREE.MathUtils.damp(
+      data.moveBlend,
+      distance > data.colliderRadius + player.userData.colliderRadius + 0.7 ? 1 : 0,
+      7,
+      dt
+    );
+
+    const gait = Math.sin(data.phase);
+    const idleWeight = 1 - data.moveBlend;
+    for (const leg of data.legs) {
+      const swing = Math.sin(data.phase + (leg.side > 0 ? Math.PI : 0));
+      leg.hip.rotation.x = swing * (0.55 * data.moveBlend + 0.012 * idleWeight);
+      leg.knee.rotation.x = Math.max(0, swing) * 0.72 * data.moveBlend;
+      leg.foot.rotation.x = -leg.hip.rotation.x * 0.32 - leg.knee.rotation.x * 0.38;
+    }
+
+    for (const arm of data.arms) {
+      const swing = Math.sin(data.phase + (arm.side > 0 ? 0 : Math.PI));
+      arm.shoulder.rotation.x = swing * 0.23 * data.moveBlend - 0.045 * idleWeight;
+      arm.shoulder.rotation.z = -arm.side * (0.02 + data.moveBlend * 0.025);
+      arm.elbow.rotation.x = -0.1 - Math.max(0, -swing) * 0.18 * data.moveBlend;
+    }
+
+    const breath = Math.sin(data.animationTime * 2.1);
+    data.body.position.y = data.baseBodyHeight
+      + Math.abs(gait) * 0.025 * data.moveBlend
+      + breath * 0.009 * idleWeight;
+    data.body.rotation.x = 0.045 * data.moveBlend + breath * 0.012 * idleWeight;
+    data.body.rotation.y = gait * 0.035 * data.moveBlend;
+    data.body.rotation.z = -gait * 0.028 * data.moveBlend;
+    data.head.rotation.x = -0.025 - data.moveBlend * 0.02 + breath * 0.015;
+
+    data.attackCooldown = Math.max(0, data.attackCooldown - dt);
+    const attackRange = data.colliderRadius + player.userData.colliderRadius + 0.52;
+    if (distance < attackRange && data.attackCooldown <= 0 && data.attackTimer <= 0) {
+      data.attackTimer = data.attackDuration;
+      data.attackCooldown = data.attackDuration + (
+        enemy.archetype === 'cyclops' ? 0.72 : enemy.archetype === 'harpy' ? 0.42 : 0.58
+      );
+      data.attackHit = false;
+    }
+
+    data.attackTimer = Math.max(0, data.attackTimer - dt);
+    const attacking = data.attackTimer > 0;
+    const progress = attacking ? 1 - data.attackTimer / data.attackDuration : 0;
+    const anticipation = attacking
+      ? 1 - THREE.MathUtils.smoothstep(progress, 0.08, 0.34)
+      : 0;
+    const strike = attacking
+      ? THREE.MathUtils.smoothstep(progress, 0.28, 0.48)
+        * (1 - THREE.MathUtils.smoothstep(progress, 0.63, 0.84))
+      : 0;
+    const recovery = attacking
+      ? THREE.MathUtils.smoothstep(progress, 0.65, 1)
+      : 0;
+
+    if (attacking) {
+      data.body.rotation.x += anticipation * 0.07 - strike * 0.17 + recovery * 0.025;
+      data.body.rotation.z += anticipation * 0.075 - strike * 0.03;
+      data.arms[1].shoulder.rotation.x -= anticipation * 0.38 + strike * 0.76;
+      data.arms[1].elbow.rotation.x -= anticipation * 0.18 + strike * 0.26;
+
+      if (data.weapon) {
+        data.weapon.rotation.x = -anticipation * 0.58 + strike * 0.34 + recovery * 0.08;
+        data.weapon.rotation.z = -strike * 0.07;
+      }
+      if (data.shieldRig) {
+        data.shieldRig.rotation.x = -0.12 - anticipation * 0.1 - strike * 0.1;
+        data.shieldRig.rotation.z = -strike * 0.05;
+      }
+
+      if (strike > 0.58 && !data.attackHit) {
+        data.attackHit = true;
+        if (distance < attackRange + 0.18) {
+          damagePlayer(state, enemy, player, toPlayer);
+        }
+      }
+    } else {
+      if (data.weapon) data.weapon.rotation.set(0, 0, 0);
+      if (data.shieldRig) data.shieldRig.rotation.set(0, 0, 0);
+    }
+
+    data.staggerTimer = Math.max(0, data.staggerTimer - dt);
+    const stagger = data.staggerTimer > 0 ? data.staggerTimer / 0.24 : 0;
+    data.body.rotation.x -= stagger * 0.18;
+    data.body.rotation.z += Math.sin(data.animationTime * 34) * stagger * 0.07;
+    data.head.rotation.z += stagger * 0.1;
+    data.arms[0].shoulder.rotation.x -= stagger * 0.14;
+    data.arms[1].shoulder.rotation.x += stagger * 0.18;
+
+    data.wings.forEach((wing, index) => {
+      const side = index ? 1 : -1;
+      const flap = Math.sin(data.phase * (attacking ? 2.05 : 1.55));
+      wing.rotation.z = side * (
+        0.18 + flap * 0.42 + (attacking ? anticipation * 0.16 + strike * 0.34 : 0)
+      );
+      wing.rotation.x = -0.08 + Math.cos(data.phase * 1.2) * 0.055;
+    });
+
+    if (data.wings.length) {
+      enemy.position.y = 0.28 + Math.sin(data.phase * 1.6) * 0.08;
+    } else {
+      enemy.position.y = 0;
+    }
+
+    if (data.weapon && enemy.archetype === 'cyclops' && !attacking) {
+      data.weapon.rotation.x = Math.sin(data.phase * 0.55) * 0.045;
+    }
+
+    data.bar.quaternion.copy(enemy.quaternion).invert().multiply(camera.quaternion);
+
+    if (data.flash > 0) {
+      data.flash -= dt;
+      if (data.flash <= 0) {
+        data.baseMaterials.forEach((material, index) => {
+          material.emissive.copy(data.baseEmissive[index]);
+          material.emissiveIntensity = 1;
+        });
+      }
+    }
+  }
+}
+dt, state, scene, player) {
   state.playerHitTimer = Math.max(0, state.playerHitTimer - dt);
 
   for (const enemy of enemies) {

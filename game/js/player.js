@@ -156,25 +156,40 @@ const crest = mesh(head, new THREE.CapsuleGeometry(0.075, 0.43, 6, 12), red, [0,
 crest.scale.set(0.9, 1.06, 1.55);
 mesh(head, new THREE.SphereGeometry(0.08, 14, 10), gold, [0, 0.55, -0.04]);
 
-const limbs = [];
+const legs = [];
+const arms = [];
 for (const side of [-1, 1]) {
-  const leg = new THREE.Group();
-  leg.position.set(side * 0.205, -0.42, 0);
-  body.add(leg);
-  mesh(leg, new THREE.CapsuleGeometry(0.105, 0.35, 5, 12), dark, [0, -0.22, 0]);
-  mesh(leg, new THREE.CapsuleGeometry(0.12, 0.27, 5, 12), bronze, [0, -0.19, 0.035]);
-  mesh(leg, new THREE.BoxGeometry(0.25, 0.13, 0.37), dark, [0, -0.48, 0.1]);
-  mesh(leg, new THREE.BoxGeometry(0.22, 0.21, 0.075), gold, [0, -0.28, 0.145]);
-  limbs.push(leg);
+  const hip = new THREE.Group();
+  hip.position.set(side * 0.205, -0.42, 0);
+  body.add(hip);
+  mesh(hip, new THREE.CapsuleGeometry(0.105, 0.15, 5, 12), dark, [0, -0.1, 0]);
 
-  const arm = new THREE.Group();
-  arm.position.set(side * 0.39, 0.16, 0);
-  body.add(arm);
-  mesh(arm, new THREE.CapsuleGeometry(0.105, 0.36, 5, 12), skin, [0, -0.2, 0]);
-  mesh(arm, new THREE.SphereGeometry(0.19, 20, 16), bronze, [side * -0.035, 0.035, 0]);
-  mesh(arm, new THREE.CylinderGeometry(0.125, 0.115, 0.2, 16), gold, [0, -0.32, 0.035], [0, 0, Math.PI / 2]);
-  mesh(arm, new THREE.CylinderGeometry(0.11, 0.105, 0.16, 16), bronze, [0, -0.43, 0.035], [0, 0, Math.PI / 2]);
-  limbs.push(arm);
+  const knee = new THREE.Group();
+  knee.position.y = -0.24;
+  hip.add(knee);
+  mesh(knee, new THREE.SphereGeometry(0.11, 16, 12), bronze, [0, 0, 0.025]);
+  mesh(knee, new THREE.CapsuleGeometry(0.09, 0.12, 5, 12), dark, [0, -0.1, 0.02]);
+
+  const foot = new THREE.Group();
+  foot.position.set(0, -0.21, 0.04);
+  knee.add(foot);
+  mesh(foot, new THREE.BoxGeometry(0.23, 0.11, 0.31), dark, [0, 0.01, 0.105]);
+  mesh(foot, new THREE.BoxGeometry(0.21, 0.13, 0.07), gold, [0, 0.025, 0.225]);
+  legs.push({ hip, knee, foot, side });
+
+  const shoulder = new THREE.Group();
+  shoulder.position.set(side * 0.39, 0.16, 0);
+  body.add(shoulder);
+  mesh(shoulder, new THREE.CapsuleGeometry(0.105, 0.31, 5, 12), skin, [0, -0.14, 0]);
+  mesh(shoulder, new THREE.SphereGeometry(0.19, 20, 16), bronze, [side * -0.035, 0.035, 0]);
+
+  const elbow = new THREE.Group();
+  elbow.position.y = -0.27;
+  shoulder.add(elbow);
+  mesh(elbow, new THREE.CapsuleGeometry(0.09, 0.23, 5, 12), skin, [0, -0.11, 0.025]);
+  mesh(elbow, new THREE.CylinderGeometry(0.115, 0.105, 0.17, 16), gold, [0, -0.12, 0.045], [0, 0, Math.PI / 2]);
+  mesh(elbow, new THREE.SphereGeometry(0.085, 14, 10), skin, [0, -0.235, 0.04]);
+  arms.push({ shoulder, elbow, side });
 }
 
 const capeGeometry = new THREE.PlaneGeometry(1.08, 1.35, 8, 10);
@@ -193,7 +208,8 @@ for (const side of [-1, 1]) {
 
 // Shield: bronze boss, raised rim, radial boss details and a clean silhouette.
 export const shieldRig = new THREE.Group();
-shieldRig.position.set(-0.57, 0.11, 0.22);
+shieldRig.position.set(-0.28, 0.04, -0.38);
+shieldRig.rotation.y = Math.PI;
 body.add(shieldRig);
 mesh(shieldRig, new THREE.CylinderGeometry(0.43, 0.43, 0.145, 40), dark, [0, 0, 0], [Math.PI / 2, 0, 0]);
 mesh(shieldRig, new THREE.TorusGeometry(0.415, 0.048, 10, 40), gold, [0, 0, 0.035]);
@@ -233,11 +249,19 @@ spearRig.add(spearTip);
 
 player.userData = {
   body,
-  limbs,
+  head,
+  legs,
+  arms,
+  cape,
+  shieldRig,
   shadow,
   hitTimer: 0,
   attackTimer: 0,
+  attackDuration: 0.72,
   walkPhase: 0,
+  animationTime: 0,
+  moveBlend: 0,
+  twoHandBlend: 1,
   colliderRadius: 0.54
 };
 player.scale.setScalar(1.1);
@@ -245,23 +269,160 @@ scene.add(player);
 
 export const orbitalGroup = new THREE.Group();
 const orbitalMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0x91a9b5,
-  metalness: 0.64,
-  roughness: 0.4,
-  clearcoat: 0.22
+  color: 0x9cc9d8,
+  metalness: 0.48,
+  roughness: 0.22,
+  clearcoat: 0.8,
+  emissive: 0x286a83,
+  emissiveIntensity: 0.42
 });
 export const orbShieldMesh = mesh(
   orbitalGroup,
-  new THREE.CylinderGeometry(0.34, 0.34, 0.12, 28),
+  new THREE.IcosahedronGeometry(0.27, 1),
   orbitalMaterial,
-  [1.55, 0.9, 0],
-  [Math.PI / 2, 0, 0]
+  [1.55, 0.9, 0]
 );
-mesh(orbitalGroup, new THREE.TorusGeometry(0.34, 0.04, 8, 24), gold, [1.55, 0.9, 0.04]);
+const orbitalRing = mesh(
+  orbitalGroup,
+  new THREE.TorusGeometry(0.38, 0.025, 8, 32),
+  gold,
+  [1.55, 0.9, 0]
+);
+orbitalRing.rotation.x = Math.PI / 2;
 orbitalGroup.visible = false;
 scene.add(orbitalGroup);
 
+const oneHandSpearPosition = new THREE.Vector3(0.42, 0.15, 0.13);
+const twoHandSpearPosition = new THREE.Vector3(0.02, 0.09, 0.28);
+const shieldGuardPosition = new THREE.Vector3(-0.57, 0.11, 0.22);
+const shieldStowPosition = new THREE.Vector3(-0.28, 0.04, -0.38);
+
 export function triggerPlayerAttack(mode = 'throw') {
+  const data = player.userData;
+  data.attackMode = mode;
+  data.attackDuration = mode === 'thrust' ? 0.68 : 0.88;
+  data.attackTimer = data.attackDuration;
+}
+
+export function triggerPlayerHit() {
+  player.userData.hitTimer = 0.3;
+}
+
+export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
+  const data = player.userData;
+  data.animationTime += dt;
+  data.moveBlend = THREE.MathUtils.damp(data.moveBlend, moving ? 1 : 0, 9, dt);
+  data.twoHandBlend = THREE.MathUtils.damp(
+    data.twoHandBlend,
+    oneHanded ? 0 : 1,
+    13,
+    dt
+  );
+
+  const stride = Math.sin(data.walkPhase);
+  const gaitSpeed = 5.2 + data.moveBlend * 7.2;
+  data.walkPhase += dt * gaitSpeed;
+  const phase = data.walkPhase;
+  const idleWeight = 1 - data.moveBlend;
+  const breath = Math.sin(data.animationTime * 2.15);
+  const twoHands = data.twoHandBlend;
+  const oneHand = 1 - twoHands;
+
+  for (const leg of data.legs) {
+    const swing = Math.sin(phase + (leg.side > 0 ? Math.PI : 0));
+    leg.hip.rotation.x = swing * (0.67 * data.moveBlend + 0.018 * idleWeight);
+    leg.knee.rotation.x = Math.max(0, swing) * 0.86 * data.moveBlend;
+    leg.foot.rotation.x = -leg.hip.rotation.x * 0.36 - leg.knee.rotation.x * 0.42;
+  }
+
+  for (const arm of data.arms) {
+    const swing = Math.sin(phase + (arm.side > 0 ? 0 : Math.PI));
+    arm.shoulder.rotation.x = swing * 0.22 * data.moveBlend - 0.045 * idleWeight;
+    arm.shoulder.rotation.z = -arm.side * (0.02 + data.moveBlend * 0.025);
+    arm.elbow.rotation.x = -0.1 - Math.max(0, -swing) * 0.16 * data.moveBlend;
+  }
+
+  data.body.position.y = 0.88
+    + Math.abs(stride) * 0.028 * data.moveBlend
+    + breath * 0.01 * idleWeight;
+  data.body.position.z = 0;
+  data.body.rotation.x = -0.035 * data.moveBlend + breath * 0.012 * idleWeight;
+  data.body.rotation.y = stride * 0.045 * data.moveBlend;
+  data.body.rotation.z = -stride * 0.035 * data.moveBlend;
+  data.head.rotation.x = -0.025 + breath * 0.016;
+  data.head.rotation.y = stride * 0.03 * data.moveBlend;
+  data.head.rotation.z = stride * 0.016 * data.moveBlend;
+
+  data.cape.rotation.x = 0.04 + data.moveBlend * 0.13
+    + Math.sin(data.animationTime * 4.1) * 0.025;
+  data.cape.rotation.z = -stride * 0.075 * data.moveBlend;
+
+  spearRig.position.lerpVectors(oneHandSpearPosition, twoHandSpearPosition, twoHands);
+  data.shieldRig.position.lerpVectors(shieldGuardPosition, shieldStowPosition, twoHands);
+  data.shieldRig.rotation.y = Math.PI * twoHands;
+  data.shieldRig.rotation.x = -0.04 * oneHand;
+  data.shieldRig.rotation.z = 0.025 * oneHand;
+
+  const leftArm = data.arms[0];
+  const rightArm = data.arms[1];
+
+  leftArm.shoulder.rotation.x += THREE.MathUtils.lerp(-0.28, -0.84, twoHands);
+  leftArm.shoulder.rotation.z += THREE.MathUtils.lerp(0.4, 0.78, twoHands);
+  leftArm.elbow.rotation.x -= THREE.MathUtils.lerp(0.3, 0.42, twoHands);
+  rightArm.shoulder.rotation.x += THREE.MathUtils.lerp(-0.62, -0.92, twoHands);
+  rightArm.shoulder.rotation.z -= THREE.MathUtils.lerp(0.12, 0.72, twoHands);
+  rightArm.elbow.rotation.x -= THREE.MathUtils.lerp(0.28, 0.4, twoHands);
+
+  data.attackTimer = Math.max(0, data.attackTimer - dt);
+  const attacking = data.attackTimer > 0;
+  const progress = attacking ? 1 - data.attackTimer / data.attackDuration : 0;
+  const anticipation = attacking
+    ? 1 - THREE.MathUtils.smoothstep(progress, 0.08, 0.34)
+    : 0;
+  const strike = attacking
+    ? THREE.MathUtils.smoothstep(progress, 0.27, 0.48)
+      * (1 - THREE.MathUtils.smoothstep(progress, 0.63, 0.86))
+    : 0;
+  const recovery = attacking
+    ? THREE.MathUtils.smoothstep(progress, 0.66, 1)
+    : 0;
+
+  if (attacking && data.attackMode === 'thrust') {
+    spearRig.rotation.x = -0.22 * anticipation + 0.1 * strike + 0.06 * recovery;
+    spearRig.position.z += -0.12 * anticipation + 0.48 * strike - 0.05 * recovery;
+    rightArm.shoulder.rotation.x -= anticipation * 0.3 + strike * 0.7;
+    rightArm.elbow.rotation.x -= strike * 0.35;
+    data.body.position.z = -0.025 * anticipation + 0.11 * strike;
+    data.body.rotation.x -= strike * 0.1;
+    data.body.rotation.z += anticipation * 0.07 - strike * 0.035;
+    data.shieldRig.rotation.x -= strike * 0.12 * oneHand;
+  } else if (attacking) {
+    spearRig.rotation.x = -1.05 * anticipation + 0.4 * strike + 0.1 * recovery;
+    spearRig.position.z += -0.15 * anticipation + 0.16 * strike - 0.035 * recovery;
+    rightArm.shoulder.rotation.x -= anticipation * 0.48 + strike * 0.24;
+    rightArm.elbow.rotation.x -= anticipation * 0.18 + strike * 0.2;
+    leftArm.shoulder.rotation.x -= anticipation * 0.16 * twoHands;
+    data.body.position.z = -0.045 * anticipation + 0.05 * strike;
+    data.body.rotation.x -= anticipation * 0.075 + strike * 0.04;
+    data.body.rotation.z += anticipation * 0.1 - strike * 0.045;
+    data.shieldRig.rotation.x -= anticipation * 0.1 * oneHand;
+  } else {
+    spearRig.rotation.set(0, 0, 0);
+  }
+
+  data.hitTimer = Math.max(0, data.hitTimer - dt);
+  const hitWeight = THREE.MathUtils.clamp(data.hitTimer / 0.3, 0, 1);
+  data.body.position.x = Math.sin(data.animationTime * 37) * 0.07 * hitWeight;
+  data.body.rotation.z += hitWeight * 0.15;
+  data.body.rotation.x -= hitWeight * 0.1;
+  data.head.rotation.z += hitWeight * 0.1;
+  data.shadow.material.opacity = 0.42 + idleWeight * 0.025
+    + Math.abs(stride) * data.moveBlend * 0.025;
+
+  bronze.emissive.setHex(state.upgradeAuraTimer > 0 ? 0x2b190d : 0x000000);
+  gold.emissiveIntensity = state.upgradeAuraTimer > 0 ? 0.18 : 0.035;
+}
+(mode = 'throw') {
   const data = player.userData;
   data.attackMode = mode;
   data.attackDuration = mode === 'thrust' ? 0.3 : 0.48;

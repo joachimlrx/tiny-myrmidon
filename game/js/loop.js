@@ -10,7 +10,7 @@ import {
   SPAWN_LEVEL_SCALE,
 } from './config.js';
 
-import { scene, camera, composer, updateScene } from './scene.js';
+import { scene, camera, composer, updateScene, arenaObstacles } from './scene.js';
 import { state } from './state.js';
 import {
   player,
@@ -110,19 +110,39 @@ function updatePlayerMovement(deltaTime) {
   const direction = cameraControls.toWorldDirection(readMovementInput());
   const inputLength = direction.length();
 
+  player.position.y = 0;
   if (inputLength <= 0.08) return false;
 
   direction.multiplyScalar(1 / inputLength);
   player.position.x += direction.x * state.speed * deltaTime;
   player.position.z += direction.y * state.speed * deltaTime;
 
-  const distanceFromCenter = Math.hypot(
-    player.position.x,
-    player.position.z,
-  );
+  const targetYaw = Math.atan2(direction.x, direction.y);
+  const yawDelta = THREE.MathUtils.euclideanModulo(
+    targetYaw - player.rotation.y + Math.PI,
+    Math.PI * 2
+  ) - Math.PI;
+  player.rotation.y += yawDelta * (1 - Math.exp(-14 * deltaTime));
 
+  const distanceFromCenter = Math.hypot(player.position.x, player.position.z);
   if (distanceFromCenter > MAX_PLAYER_RADIUS) {
     player.position.multiplyScalar(MAX_PLAYER_RADIUS / distanceFromCenter);
+  }
+
+  for (const obstacle of arenaObstacles) {
+    const dx = player.position.x - obstacle.x;
+    const dz = player.position.z - obstacle.z;
+    const distanceSquared = dx * dx + dz * dz;
+    const minimumDistance = player.userData.colliderRadius + obstacle.radius;
+
+    if (distanceSquared >= minimumDistance * minimumDistance) continue;
+
+    const distance = Math.sqrt(Math.max(distanceSquared, 1e-8));
+    const normalX = distance > 1e-4 ? dx / distance : 1;
+    const normalZ = distance > 1e-4 ? dz / distance : 0;
+    const penetration = minimumDistance - distance;
+    player.position.x += normalX * penetration;
+    player.position.z += normalZ * penetration;
   }
 
   return true;
@@ -204,7 +224,7 @@ function updateOrbitalShield(deltaTime) {
 function updateGame(deltaTime) {
   const isMoving = updatePlayerMovement(deltaTime);
 
-  updatePlayerAnimation(deltaTime, isMoving, state);
+  updatePlayerAnimation(deltaTime, isMoving, state, Boolean(keys.shift));
   state.upgradeAuraTimer = Math.max(0, state.upgradeAuraTimer - deltaTime);
 
   updateEnemySpawning(deltaTime);
