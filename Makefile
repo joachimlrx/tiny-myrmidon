@@ -1,4 +1,4 @@
-.PHONY: build check clean deploy dev fmt help k3d-down k3d-up logs status stop test tunnel
+.PHONY: build check clean deploy fmt help k3d-up logs status stop test tunnel
 .DEFAULT_GOAL := help
 
 CLUSTER_NAME = tiny-myrmidon
@@ -18,7 +18,7 @@ build: ## Build minimal Alpine Docker images
 	@docker build -t tiny-myrmidon-game:v1 game/ || \
 		$(call fail,Failed to build Game image.)
 
-check: ## Run format checks, linter, and tests
+check: ## Run Rust, JavaScript, and Kubernetes checks
 	@echo "==> Checking formatting..."
 	@cd api && cargo fmt --all -- --check || \
 		$(call fail,Run 'make fmt' to fix formatting.)
@@ -28,6 +28,10 @@ check: ## Run format checks, linter, and tests
 	@echo "==> Running tests..."
 	@cd api && cargo test --all || \
 		$(call fail,API tests failed.)
+	@echo "==> Checking frontend JavaScript syntax..."
+	@for script in game/js/*.js; do \
+		node --input-type=module --check < "$$script" || exit 1; \
+	done || $(call fail,Frontend JavaScript syntax check failed.)
 	@echo "==> Validating Kubernetes manifests..."
 	@python3 -c "import yaml; \
 		docs = list(yaml.safe_load_all(open('k8s/app.yaml'))); \
@@ -57,9 +61,6 @@ deploy: build k3d-up ## Build, import images and deploy to Kubernetes
 		$(call fail,Game pod failed to start.)
 	@kubectl get pods
 
-dev: ## Run the Rust API locally on port 3000
-	@cd api && cargo run
-
 fmt: ## Auto-format code
 	@cd api && cargo fmt --all
 
@@ -67,11 +68,7 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
-k3d-down: ## Delete local k3d cluster
-	@k3d cluster delete $(CLUSTER_NAME) || \
-		$(call fail,Cluster '$(CLUSTER_NAME)' not found.)
-
-k3d-up: ## Create or start local k3d cluster
+k3d-up:
 	@k3d cluster list $(CLUSTER_NAME) >/dev/null 2>&1 || \
 		k3d cluster create $(CLUSTER_NAME) --port "$(PORT):80@loadbalancer" || \
 		$(call fail,Failed to create k3d cluster.)
