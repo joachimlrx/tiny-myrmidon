@@ -98,23 +98,25 @@ body.position.y = 0.88;
 player.add(body);
 
 // Layered linen tunic and sculpted bronze cuirass.
-mesh(body, new THREE.CapsuleGeometry(0.31, 0.47, 7, 18), red, [0, 0, -0.015]);
+const tunic = mesh(body, new THREE.CapsuleGeometry(0.285, 0.52, 8, 20), red, [0, 0.015, -0.015]);
+tunic.scale.set(1.02, 1.08, 0.92);
 const breastplate = mesh(
   body,
-  new THREE.SphereGeometry(0.41, 32, 22),
+  new THREE.SphereGeometry(0.41, 40, 28),
   bronze,
   [0, 0.13, 0.075]
 );
-breastplate.scale.set(1.04, 0.83, 0.75);
+// Broad upper chest, tapered waist: a more anatomical cuirass silhouette.
+breastplate.scale.set(1.08, 1.18, 0.66);
 
 for (const side of [-1, 1]) {
   const pectoral = mesh(
     body,
-    new THREE.SphereGeometry(0.235, 24, 18),
+    new THREE.SphereGeometry(0.225, 28, 20),
     bronze,
-    [side * 0.16, 0.18, 0.285]
+    [side * 0.155, 0.205, 0.255]
   );
-  pectoral.scale.set(1.08, 0.68, 0.32);
+  pectoral.scale.set(1.12, 0.72, 0.29);
 }
 
 for (let row = 0; row < 3; row += 1) {
@@ -127,9 +129,9 @@ for (let row = 0; row < 3; row += 1) {
   plate.scale.set(0.82, 0.22, 0.58);
 }
 
-mesh(body, new THREE.TorusGeometry(0.31, 0.028, 10, 36), gold, [0, -0.42, 0]);
-mesh(body, new THREE.CylinderGeometry(0.33, 0.35, 0.13, 24), dark, [0, -0.42, 0]);
-mesh(body, new THREE.TorusGeometry(0.34, 0.025, 8, 32), gold, [0, -0.49, 0]);
+mesh(body, new THREE.TorusGeometry(0.285, 0.024, 10, 36), gold, [0, -0.405, 0]);
+mesh(body, new THREE.CylinderGeometry(0.29, 0.315, 0.12, 32), dark, [0, -0.415, 0]);
+mesh(body, new THREE.TorusGeometry(0.305, 0.021, 8, 32), gold, [0, -0.48, 0]);
 
 // A proper helmet silhouette: crown, brow, cheek guards, nose guard and crest.
 const head = new THREE.Group();
@@ -199,31 +201,32 @@ const legs = [];
 const arms = [];
 for (const side of [-1, 1]) {
   const hip = new THREE.Group();
-  hip.position.set(side * 0.205, -0.42, 0);
+  hip.position.set(side * 0.19, -0.47, 0);
   body.add(hip);
-  mesh(hip, new THREE.CapsuleGeometry(0.105, 0.15, 5, 12), dark, [0, -0.1, 0]);
+  mesh(hip, new THREE.CapsuleGeometry(0.105, 0.19, 6, 14), dark, [0, -0.12, 0]);
 
   const knee = new THREE.Group();
-  knee.position.y = -0.24;
+  knee.position.y = -0.275;
   hip.add(knee);
-  mesh(knee, new THREE.SphereGeometry(0.11, 16, 12), bronze, [0, 0, 0.025]);
-  mesh(knee, new THREE.CapsuleGeometry(0.09, 0.12, 5, 12), dark, [0, -0.1, 0.02]);
+  mesh(knee, new THREE.SphereGeometry(0.105, 18, 14), bronze, [0, 0, 0.025]);
+  mesh(knee, new THREE.CapsuleGeometry(0.085, 0.17, 6, 14), dark, [0, -0.12, 0.015]);
 
   const foot = new THREE.Group();
-  foot.position.set(0, -0.21, 0.04);
+  foot.position.set(0, -0.255, 0.04);
   knee.add(foot);
-  mesh(foot, new THREE.BoxGeometry(0.23, 0.11, 0.31), dark, [0, 0.01, 0.105]);
-  mesh(foot, new THREE.BoxGeometry(0.21, 0.13, 0.07), gold, [0, 0.025, 0.225]);
+  mesh(foot, new THREE.BoxGeometry(0.205, 0.095, 0.29), dark, [0, 0.01, 0.105]);
+  mesh(foot, new THREE.BoxGeometry(0.19, 0.11, 0.065), gold, [0, 0.025, 0.225]);
   legs.push({ hip, knee, foot, side, baseFootY: foot.position.y });
 
   const shoulder = new THREE.Group();
-  shoulder.position.set(side * 0.39, 0.16, 0);
+  shoulder.position.set(side * 0.405, 0.19, 0);
   body.add(shoulder);
   mesh(shoulder, new THREE.CapsuleGeometry(0.105, 0.31, 5, 12), skin, [0, -0.14, 0]);
-  mesh(shoulder, new THREE.SphereGeometry(0.19, 20, 16), bronze, [side * -0.035, 0.035, 0]);
+  const pauldron = mesh(shoulder, new THREE.SphereGeometry(0.19, 24, 18), bronze, [side * -0.035, 0.035, 0]);
+  pauldron.scale.set(1.12, 0.78, 1.08);
 
   const elbow = new THREE.Group();
-  elbow.position.y = -0.27;
+  elbow.position.y = -0.29;
   shoulder.add(elbow);
   mesh(elbow, new THREE.CapsuleGeometry(0.09, 0.23, 5, 12), skin, [0, -0.11, 0.025]);
   mesh(elbow, new THREE.CylinderGeometry(0.115, 0.105, 0.17, 16), bronze, [0, -0.12, 0.045], [0, 0, Math.PI / 2]);
@@ -454,7 +457,7 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
   data.gltfMixer?.update(dt);
   data.twoHandBlend = THREE.MathUtils.damp(data.twoHandBlend, oneHanded ? 0 : 1, 13, dt);
 
-  const gaitSpeed = 5.2 + data.moveBlend * 7.2;
+  const gaitSpeed = 4.8 + data.moveBlend * 6.4;
   data.walkPhase += dt * gaitSpeed;
   const phase = data.walkPhase;
   const stride = Math.sin(phase);
@@ -466,27 +469,27 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
   for (const leg of data.legs) {
     leg.foot.position.y = leg.baseFootY;
     const swing = Math.sin(phase + (leg.side > 0 ? Math.PI : 0));
-    leg.hip.rotation.x = swing * (0.67 * data.moveBlend + 0.018 * idleWeight);
-    leg.knee.rotation.x = Math.max(0, swing) * 0.86 * data.moveBlend;
-    leg.foot.rotation.x = -leg.hip.rotation.x * 0.36 - leg.knee.rotation.x * 0.42;
+    leg.hip.rotation.x = swing * (0.52 * data.moveBlend + 0.012 * idleWeight);
+    leg.knee.rotation.x = Math.max(0, -swing) * 0.92 * data.moveBlend;
+    leg.foot.rotation.x = -leg.hip.rotation.x * 0.28 - leg.knee.rotation.x * 0.48;
   }
 
   for (const arm of data.arms) {
     const swing = Math.sin(phase + (arm.side > 0 ? 0 : Math.PI));
-    arm.shoulder.rotation.x = swing * 0.22 * data.moveBlend - 0.045 * idleWeight;
-    arm.shoulder.rotation.z = -arm.side * (0.02 + data.moveBlend * 0.025);
-    arm.elbow.rotation.x = -0.1 - Math.max(0, -swing) * 0.16 * data.moveBlend;
+    arm.shoulder.rotation.x = -swing * 0.34 * data.moveBlend - 0.055 * idleWeight;
+    arm.shoulder.rotation.z = -arm.side * (0.035 + data.moveBlend * 0.035);
+    arm.elbow.rotation.x = -0.16 - Math.max(0, -swing) * 0.22 * data.moveBlend;
   }
 
   data.body.position.y = 0.88 + Math.abs(stride) * 0.028 * data.moveBlend
     + breath * 0.01 * idleWeight;
   data.body.position.z = 0;
-  data.body.rotation.x = -0.035 * data.moveBlend + breath * 0.012 * idleWeight;
-  data.body.rotation.y = stride * 0.045 * data.moveBlend;
+  data.body.rotation.x = -0.055 * data.moveBlend + breath * 0.014 * idleWeight;
+  data.body.rotation.y = stride * 0.065 * data.moveBlend;
   data.body.rotation.z = -stride * 0.035 * data.moveBlend;
   data.head.rotation.x = -0.025 + breath * 0.016;
-  data.head.rotation.y = stride * 0.03 * data.moveBlend;
-  data.head.rotation.z = stride * 0.016 * data.moveBlend;
+  data.head.rotation.y = stride * 0.045 * data.moveBlend;
+  data.head.rotation.z = stride * 0.009 * data.moveBlend;
   // Subtle eye focus and natural blink keep the face alive without a heavy rig.
   const blink = Math.pow(Math.max(0, Math.sin(data.animationTime * 0.73 + 1.4)), 48);
   for (const eye of data.faceDetails.eyes) eye.scale.y = 0.78 * (1 - blink * 0.92);
