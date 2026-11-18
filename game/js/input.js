@@ -22,14 +22,24 @@ const MOVEMENT_KEYS = new Set([
 ]);
 
 const TOUCH_BLOCKING_SELECTOR =
-  '#upgrade-modal, #gameover-modal, #pause-modal, button, input';
+  '#upgrade-modal, #gameover-modal, #pause-modal, #start-screen, button, input';
 
 const joystickBase = document.getElementById('joystick-base');
 const joystickKnob = document.getElementById('joystick-knob');
 
 /**
- * Clear the active touch direction and hide the on-screen joystick.
+ * Return true when a key should be handled by the browser or a form.
+ * This is important for score entry: Z, Q, S and D must remain typeable.
  */
+function isTextEntryTarget(target) {
+  if (!(target instanceof Element)) return false;
+
+  return Boolean(
+    target.closest('input, textarea, select, [contenteditable="true"]'),
+  );
+}
+
+/** Clear the active touch direction and hide the on-screen joystick. */
 export function resetTouch() {
   touchState.active = false;
   touchState.identifier = null;
@@ -42,8 +52,21 @@ export function resetTouch() {
   }
 }
 
-function handleKeyDown(event, togglePause) {
+function handleKeyDown(event, state, togglePause, startSession) {
+  // Never intercept text input, including the score form at game over.
+  if (isTextEntryTarget(event.target)) return;
+
   const key = event.key.toLowerCase();
+
+  // The title screen accepts Enter or Space to start a new run.
+  if (!state.started) {
+    if ((key === 'enter' || key === ' ') && !event.repeat) {
+      event.preventDefault();
+      startSession();
+    }
+    return;
+  }
+
   keys[key] = true;
 
   if ((key === 'p' || key === 'escape') && !event.repeat) {
@@ -64,6 +87,7 @@ function clearKeyboardAndTouch() {
   Object.keys(keys).forEach((key) => {
     keys[key] = false;
   });
+
   resetTouch();
 }
 
@@ -72,7 +96,7 @@ function isTouchBlockedByUi(target) {
 }
 
 function handleTouchStart(event, state) {
-  if (state.paused || state.over) return;
+  if (!state.started || state.paused || state.over) return;
   if (isTouchBlockedByUi(event.target)) return;
   if (touchState.active || event.changedTouches.length === 0) return;
   if (!joystickBase || !joystickKnob) return;
@@ -136,12 +160,10 @@ function bindPauseAndRestartButtons(togglePause) {
   document.getElementById('pause-restart-btn')?.addEventListener('click', restart);
 }
 
-/**
- * Register keyboard, touch and window events used by the game.
- */
-export function initInput(state, camera, togglePause) {
+/** Register keyboard, touch and window events used by the game. */
+export function initInput(state, camera, togglePause, startSession) {
   window.addEventListener('keydown', (event) => {
-    handleKeyDown(event, togglePause);
+    handleKeyDown(event, state, togglePause, startSession);
   });
 
   window.addEventListener('keyup', handleKeyUp);

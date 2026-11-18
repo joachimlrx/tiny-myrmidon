@@ -2,8 +2,6 @@ import * as THREE from 'three';
 
 import {
   ARENA_RADIUS,
-  CAMERA_HEIGHT,
-  CAMERA_Z_OFFSET,
   FRAME_DT_CAP,
   MAX_ENEMIES,
   SPAWN_INTERVAL_BASE,
@@ -38,6 +36,7 @@ import {
   initInput,
 } from './input.js';
 import { initLeaderboardSubmit } from './leaderboard.js';
+import { createCameraControls } from './camera-controls.js';
 
 const MAX_PLAYER_RADIUS = ARENA_RADIUS - 1;
 const ORBITAL_ROTATION_SPEED = 3.6;
@@ -45,9 +44,9 @@ const ORBITAL_DAMAGE_INTERVAL = 0.22;
 
 const movementInput = new THREE.Vector2();
 const cameraTarget = new THREE.Vector3();
-const desiredCameraPosition = new THREE.Vector3();
 const orbitalShieldPosition = new THREE.Vector3();
 const orbitalKnockbackDirection = new THREE.Vector3();
+const cameraControls = createCameraControls(camera);
 
 let previousFrameTime = performance.now();
 let elapsedGameTime = 0;
@@ -60,13 +59,23 @@ function showUpgradeSelection() {
   showUpgrades(state, orbitalGroup, resetTouch, refreshHud);
 }
 
+function startSession() {
+  if (state.started) return;
+
+  state.started = true;
+  state.paused = false;
+
+  document.body.classList.remove('menu-active');
+  refreshHud();
+  announceWave(state.level);
+}
+
 function togglePause() {
   const upgradeModal = document.getElementById('upgrade-modal');
   const pauseModal = document.getElementById('pause-modal');
 
-  if (state.over || upgradeModal?.classList.contains('is-visible')) {
-    return;
-  }
+  if (!state.started || state.over) return;
+  if (upgradeModal?.classList.contains('is-visible')) return;
 
   state.paused = !state.paused;
   pauseModal?.classList.toggle('is-visible', state.paused);
@@ -75,9 +84,7 @@ function togglePause() {
   refreshHud();
 }
 
-/**
- * Combine keyboard and joystick input into one movement vector.
- */
+/** Combine keyboard and joystick input into one movement vector. */
 function readMovementInput() {
   const right = keys.d || keys.arrowright;
   const left = keys.q || keys.a || keys.arrowleft;
@@ -97,16 +104,12 @@ function readMovementInput() {
   return movementInput;
 }
 
-/**
- * Move the hero and keep it inside the arena.
- * Returns true when the hero is moving.
- */
+/** Move the hero and keep it inside the arena. */
 function updatePlayerMovement(deltaTime) {
   const direction = readMovementInput();
   const inputLength = direction.length();
-  const isMoving = inputLength > 0.08;
 
-  if (!isMoving) return false;
+  if (inputLength <= 0.08) return false;
 
   direction.multiplyScalar(1 / inputLength);
   player.position.x += direction.x * state.speed * deltaTime;
@@ -124,31 +127,17 @@ function updatePlayerMovement(deltaTime) {
   return true;
 }
 
+/** Keep the camera focused on the hero while allowing mouse orbit and zoom. */
 function updateCamera(deltaTime) {
   cameraTarget.set(player.position.x, 0, player.position.z);
-
-  desiredCameraPosition.set(
-    player.position.x,
-    CAMERA_HEIGHT,
-    player.position.z + CAMERA_Z_OFFSET,
-  );
-
-  camera.position.lerp(
-    desiredCameraPosition,
-    1 - Math.exp(-4 * deltaTime),
-  );
-  camera.lookAt(cameraTarget);
+  cameraControls.update(cameraTarget, deltaTime);
 }
 
-/**
- * Spawn enemies at a pace that increases with the current level.
- */
+/** Spawn enemies at a pace that increases with the current level. */
 function updateEnemySpawning(deltaTime) {
   state.spawnTimer -= deltaTime;
 
-  if (state.spawnTimer > 0 || enemies.length >= MAX_ENEMIES) {
-    return;
-  }
+  if (state.spawnTimer > 0 || enemies.length >= MAX_ENEMIES) return;
 
   spawnEnemy(state, scene, player);
 
@@ -158,9 +147,7 @@ function updateEnemySpawning(deltaTime) {
   state.spawnTimer = Math.max(SPAWN_INTERVAL_MIN, intervalForLevel);
 }
 
-/**
- * Keep the Orbital Aegis moving and apply its periodic area damage.
- */
+/** Move the Orbital Aegis and apply its periodic area damage. */
 function updateOrbitalShield(deltaTime) {
   if (!state.hasOrbital) return;
 
@@ -208,16 +195,13 @@ function updateOrbitalShield(deltaTime) {
   }
 }
 
-/**
- * Update every gameplay system for one active frame.
- */
+/** Update all gameplay systems for one active frame. */
 function updateGame(deltaTime) {
   const isMoving = updatePlayerMovement(deltaTime);
 
   updatePlayerAnimation(deltaTime, isMoving, state);
   state.upgradeAuraTimer = Math.max(0, state.upgradeAuraTimer - deltaTime);
 
-  updateCamera(deltaTime);
   updateEnemySpawning(deltaTime);
 
   tickFireTimer(deltaTime, state);
@@ -236,7 +220,6 @@ function updateGame(deltaTime) {
   );
 
   updateEnemyEffects(deltaTime, scene);
-  updateScene(deltaTime, elapsedGameTime);
   refreshHud();
 
   if (state.level !== lastAnnouncedWave) {
@@ -245,9 +228,7 @@ function updateGame(deltaTime) {
   }
 }
 
-/**
- * Main animation loop. Pausing stops game updates but keeps the scene visible.
- */
+/** Render continuously, even while the title screen or pause menu is visible. */
 function renderFrame(currentTime) {
   requestAnimationFrame(renderFrame);
 
@@ -256,6 +237,10 @@ function renderFrame(currentTime) {
 
   previousFrameTime = currentTime;
   elapsedGameTime += deltaTime;
+
+  // Camera controls and decorative arena lights remain active in menus.
+  updateScene(deltaTime, elapsedGameTime);
+  updateCamera(deltaTime);
 
   if (state.paused || state.over) {
     composer.render();
@@ -267,11 +252,15 @@ function renderFrame(currentTime) {
 }
 
 function startGame() {
-  initInput(state, camera, togglePause);
+  initInput(state, camera, togglePause, startSession);
   initLeaderboardSubmit(state);
 
+  document.getElementById('start-button')?.addEventListener(
+    'click',
+    startSession,
+  );
+
   refreshHud();
-  announceWave(state.level);
   requestAnimationFrame(renderFrame);
 }
 

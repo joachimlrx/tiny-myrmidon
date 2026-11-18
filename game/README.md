@@ -14,14 +14,15 @@ Le jeu ne nécessite pas de compilation JavaScript séparée.
 
 | Fichier | Responsabilité |
 | --- | --- |
-| `index.html` | Structure de la page : HUD, menus, tableau des scores et import de Three.js |
+| `index.html` | Structure de la page : écran d'accueil, HUD, menus et import de Three.js |
 | `styles/base.css` | Règles communes de la page et styles de boutons |
 | `styles/hud.css` | Barres de vie et d'expérience, niveau, pause et aide clavier |
 | `styles/modals.css` | Menus pause, améliorations et fin de partie |
 | `styles/joystick.css` | Joystick tactile |
 | `js/config.js` | Réglages fixes : distances, vitesses et limites |
 | `js/state.js` | Valeurs qui changent pendant une partie |
-| `js/input.js` | Clavier, joystick tactile et boutons pause / redémarrage |
+| `js/input.js` | Clavier, saisie du nom, joystick tactile et boutons pause / redémarrage |
+| `js/camera-controls.js` | Rotation de la caméra à la souris et zoom à la molette |
 | `js/loop.js` | Coordination des systèmes à chaque image |
 | `js/scene.js` | Scène Three.js, lumière, caméra, décor et rendu |
 | `js/player.js` | Modèle du héros et ses animations |
@@ -65,3 +66,15 @@ La pause arrête les mises à jour du jeu, mais continue d'afficher la dernière
 - Garder les constantes d'équilibrage dans `config.js`.
 - Ne pas manipuler le DOM depuis les systèmes de combat : les mises à jour d'interface passent par `hud.js`.
 - Après une modification JavaScript, vérifier la syntaxe avec la CI GitHub Actions.
+
+
+## Écran d'accueil et caméra
+
+- L'écran titre est dans `index.html` et son apparence dans `styles/menu.css`.
+- La partie ne démarre qu'après le bouton `Start your legend` ou la touche Entrée.
+- `camera-controls.js` gère la caméra indépendamment du gameplay : glisser avec le bouton gauche de la souris fait tourner la caméra, et la molette règle la distance.
+- La caméra reste contrôlable pendant les menus et lorsque la partie est en pause.
+
+## Enregistrement du score
+
+Le formulaire de fin de partie utilise un véritable événement `submit`. On peut écrire avec toutes les touches du clavier, y compris Z, Q, S et D. La touche Entrée envoie le formulaire. Quand le curseur est dans un champ de saisie, les raccourcis du jeu ne capturent pas les caractères.

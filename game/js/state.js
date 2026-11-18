@@ -29,7 +29,8 @@ export const state = {
   orbitalAngle: 0,
 
   // Run lifecycle and timers.
-  paused: false,
+  started: false,
+  paused: true,
   over: false,
   spawnTimer: 0,
   playerHitTimer: 0,

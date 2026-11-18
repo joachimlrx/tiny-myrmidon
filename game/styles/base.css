@@ -27,6 +27,26 @@ canvas {
   inset: 0;
   z-index: 0;
   display: block;
+  cursor: grab;
+}
+
+body.camera-dragging,
+body.camera-dragging * {
+  cursor: grabbing !important;
+}
+
+body.menu-active #hud,
+body.menu-active #pause-btn,
+body.menu-active #control-hint {
+  display: none;
+}
+
+body.menu-active #start-screen {
+  display: grid;
+}
+
+body:not(.menu-active) #start-screen {
+  display: none;
 }
 
 body::after {

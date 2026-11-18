@@ -69,6 +69,7 @@ async function submitScore(state, elements) {
       'Enter a hero name before recording your legend.',
       'error',
     );
+    input.focus();
     return;
   }
 
@@ -115,15 +116,21 @@ async function submitScore(state, elements) {
   }
 }
 
+/**
+ * Listen to the form submit event instead of the button click.
+ * This supports both clicking the button and pressing Enter in the name field.
+ */
 export function initLeaderboardSubmit(state) {
+  const form = document.getElementById('score-form');
   const submitButton = document.getElementById('submit-score-btn');
   const input = document.getElementById('player-name');
   const status = document.getElementById('submit-status');
-  const form = document.getElementById('score-form');
 
-  if (!submitButton || !input || !status || !form) return;
+  if (!form || !submitButton || !input || !status) return;
 
-  submitButton.addEventListener('click', () => {
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+
     submitScore(state, {
       input,
       submitButton,
