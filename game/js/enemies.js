@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { SPAWN_DISTANCE, ENEMY_SPAWN_RADIUS, MAX_ENEMIES } from './config.js';
 import { camera, arenaObstacles } from './scene.js';
 import { triggerPlayerHit } from './player.js';
+import { spawnImpactBurst } from './particles.js';
 
 export const enemies = [];
 
@@ -413,7 +414,7 @@ export function applyEnemyDamage(enemy, damage, state, scene, spawnGem, directio
     data.fill.position.x = -0.44 * (1 - ratio);
     data.knockback.add(hitDirection.multiplyScalar(enemy.archetype === 'cyclops' ? 0.85 : 1.75));
     showDamage(scene, enemy.position, String(Math.max(1, Math.round(remainingDamage))));
-    spawnSparks(scene, enemy.position);
+    spawnImpactBurst(scene, enemy.position, hitDirection);
   }
 
   if (enemy.hp <= 0 && !enemy.dead) {
@@ -652,6 +653,8 @@ export function updateEnemies(dt, state, scene, player) {
     const stagger = data.staggerTimer > 0 ? data.staggerTimer / 0.24 : 0;
     data.body.rotation.x -= stagger * 0.18;
     data.body.rotation.z += Math.sin(data.animationTime * 34) * stagger * 0.07;
+    const impactSquash = stagger * 0.075;
+    data.body.scale.set(1 + impactSquash, 1 - impactSquash * 0.65, 1 + impactSquash);
     data.head.rotation.z += stagger * 0.1;
     data.arms[0].shoulder.rotation.x -= stagger * 0.14;
     data.arms[1].shoulder.rotation.x += stagger * 0.18;
