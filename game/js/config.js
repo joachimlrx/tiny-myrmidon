@@ -1,3 +1,4 @@
+// Arena boundaries and enemy spawning.
 export const ARENA_RADIUS = 24;
 export const ENEMY_SPAWN_RADIUS = 26;
 export const SPAWN_DISTANCE = 18;
@@ -5,17 +6,23 @@ export const SPAWN_INTERVAL_BASE = 1.75;
 export const SPAWN_INTERVAL_MIN = 0.72;
 export const SPAWN_LEVEL_SCALE = 0.045;
 export const MAX_ENEMIES = 20;
+
+// Keyboard and touch controls.
 export const MAX_JOYSTICK_RADIUS = 50;
-export const SPEAR_SPEED = 29;
+
+// Spear combat.
 export const SPEAR_RANGE = 23;
 export const SPEAR_RADIUS = 0.24;
-export const GEM_ATTRACT_RADIUS = 5;
-export const GEM_COLLECT_RADIUS = 1;
-export const GEM_ATTRACT_SPEED = 8;
-export const CAMERA_HEIGHT = 10.8;
-export const CAMERA_Z_OFFSET = 9.5;
-export const FRAME_DT_CAP = 0.04;
-
 export const MELEE_RANGE = 3.7;
 export const SPEAR_FLIGHT_SPEED = 22;
 export const SPEAR_GRAVITY = 11.8;
+
+// Experience pickups.
+export const GEM_ATTRACT_RADIUS = 5;
+export const GEM_COLLECT_RADIUS = 1;
+export const GEM_ATTRACT_SPEED = 8;
+
+// Camera and frame timing.
+export const CAMERA_HEIGHT = 10.8;
+export const CAMERA_Z_OFFSET = 9.5;
+export const FRAME_DT_CAP = 0.04;

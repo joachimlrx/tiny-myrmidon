@@ -1,28 +1,68 @@
+function setBarWidth(elementId, percentage) {
+  const element = document.getElementById(elementId);
+  if (!element) return;
+
+  const clampedPercentage = Math.max(0, Math.min(100, percentage));
+  element.style.width = clampedPercentage + '%';
+}
+
 export function updateHud(state, isTouchDevice) {
-  const hp = document.getElementById('hp-bar');
-  const xp = document.getElementById('xp-bar');
-  const hpLabel = document.getElementById('hp-label');
-  const xpLabel = document.getElementById('xp-label');
-  const stats = document.getElementById('stats');
-  const cooldown = document.getElementById('cooldown-fill');
-  const level = document.getElementById('level-value');
+  const healthPercentage = (state.hp / state.maxHp) * 100;
+  const experiencePercentage = (state.xp / state.nextXp) * 100;
+  const cooldownPercentage =
+    (1 - state.fireTimer / state.fireRate) * 100;
+
+  setBarWidth('hp-bar', healthPercentage);
+  setBarWidth('xp-bar', experiencePercentage);
+  setBarWidth('cooldown-fill', cooldownPercentage);
+
+  const healthLabel = document.getElementById('hp-label');
+  const experienceLabel = document.getElementById('xp-label');
+  const levelLabel = document.getElementById('level-value');
+  const statsLabel = document.getElementById('stats');
   const pauseButton = document.getElementById('pause-btn');
 
-  if (hp) hp.style.width = Math.max(0, (state.hp / state.maxHp) * 100) + '%';
-  if (xp) xp.style.width = Math.min(100, (state.xp / state.nextXp) * 100) + '%';
-  if (hpLabel) hpLabel.textContent = Math.ceil(state.hp) + ' / ' + state.maxHp;
-  if (xpLabel) xpLabel.textContent = state.xp + ' / ' + state.nextXp + ' XP';
-  if (level) level.textContent = String(state.level);
-  if (stats) stats.textContent = state.kills + ' defeated  ·  ' + state.score.toLocaleString() + ' renown  ·  ' + (isTouchDevice ? 'Touch joystick' : 'ZQSD / WASD / Arrows');
-  if (cooldown) cooldown.style.width = Math.max(0, Math.min(100, (1 - state.fireTimer / state.fireRate) * 100)) + '%';
-  if (pauseButton) pauseButton.textContent = state.paused && !state.over ? 'RESUME' : 'PAUSE';
+  if (healthLabel) {
+    healthLabel.textContent = Math.ceil(state.hp) + ' / ' + state.maxHp;
+  }
+
+  if (experienceLabel) {
+    experienceLabel.textContent =
+      state.xp + ' / ' + state.nextXp + ' XP';
+  }
+
+  if (levelLabel) {
+    levelLabel.textContent = String(state.level);
+  }
+
+  if (statsLabel) {
+    const movementHint = isTouchDevice
+      ? 'Touch joystick'
+      : 'ZQSD / WASD / Arrows';
+
+    statsLabel.textContent =
+      state.kills + ' defeated · ' +
+      state.score.toLocaleString() + ' renown · ' +
+      movementHint;
+  }
+
+  if (pauseButton) {
+    pauseButton.textContent =
+      state.paused && !state.over ? 'RESUME' : 'PAUSE';
+  }
 }
 
 export function announceWave(level) {
   const banner = document.getElementById('wave-announcement');
   if (!banner) return;
-  banner.textContent = level % 5 === 0 ? 'WAVE ' + level + ' · THE CYCLOPS AWAKENS' : 'WAVE ' + level;
+
+  banner.textContent = level % 5 === 0
+    ? 'WAVE ' + level + ' · THE CYCLOPS AWAKENS'
+    : 'WAVE ' + level;
+
   banner.classList.remove('wave-visible');
+
+  // Restart the CSS animation for each new wave.
   void banner.offsetWidth;
   banner.classList.add('wave-visible');
 }
