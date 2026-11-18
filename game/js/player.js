@@ -156,6 +156,7 @@ const crest = mesh(head, new THREE.CapsuleGeometry(0.075, 0.43, 6, 12), red, [0,
 crest.scale.set(0.9, 1.06, 1.55);
 mesh(head, new THREE.SphereGeometry(0.08, 14, 10), gold, [0, 0.55, -0.04]);
 
+const footWorldPosition = new THREE.Vector3();
 const legs = [];
 const arms = [];
 for (const side of [-1, 1]) {
@@ -175,7 +176,7 @@ for (const side of [-1, 1]) {
   knee.add(foot);
   mesh(foot, new THREE.BoxGeometry(0.23, 0.11, 0.31), dark, [0, 0.01, 0.105]);
   mesh(foot, new THREE.BoxGeometry(0.21, 0.13, 0.07), gold, [0, 0.025, 0.225]);
-  legs.push({ hip, knee, foot, side });
+  legs.push({ hip, knee, foot, side, baseFootY: foot.position.y });
 
   const shoulder = new THREE.Group();
   shoulder.position.set(side * 0.39, 0.16, 0);
@@ -324,6 +325,7 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
   const oneHand = 1 - twoHands;
 
   for (const leg of data.legs) {
+    leg.foot.position.y = leg.baseFootY;
     const swing = Math.sin(phase + (leg.side > 0 ? Math.PI : 0));
     leg.hip.rotation.x = swing * (0.67 * data.moveBlend + 0.018 * idleWeight);
     leg.knee.rotation.x = Math.max(0, swing) * 0.86 * data.moveBlend;
@@ -402,6 +404,14 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
     data.shieldRig.rotation.x -= anticipation * 0.1 * oneHand;
   } else {
     spearRig.rotation.set(0, 0, 0);
+  }
+
+  player.updateMatrixWorld(true);
+  for (const leg of data.legs) {
+    leg.foot.getWorldPosition(footWorldPosition);
+    if (footWorldPosition.y < 0) {
+      leg.foot.position.y -= footWorldPosition.y;
+    }
   }
 
   data.hitTimer = Math.max(0, data.hitTimer - dt);

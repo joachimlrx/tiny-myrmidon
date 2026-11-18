@@ -42,6 +42,7 @@ const profiles = {
 };
 
 const effects = [];
+const footWorldPosition = new THREE.Vector3();
 const metal = (color, roughness, metalness = 0.72) => new THREE.MeshPhysicalMaterial({
   color,
   roughness: Math.max(roughness, 0.38),
@@ -173,7 +174,7 @@ function makeEnemy(type) {
     foot.position.set(0, isCyclops ? -0.25 : -0.21, 0.04);
     knee.add(foot);
     part(foot, new THREE.BoxGeometry(isCyclops ? 0.35 : 0.24, 0.14, 0.31), dark, [0, 0.01, 0.105]);
-    legs.push({ hip, knee, foot, side });
+    legs.push({ hip, knee, foot, side, baseFootY: foot.position.y });
 
     const shoulder = new THREE.Group();
     shoulder.position.set(side * (isCyclops ? 0.67 : 0.42), 0.22, 0);
@@ -434,43 +435,6 @@ function pushOutOfObstacles(position, radius) {
     const dz = position.z - obstacle.z;
     const distanceSquared = dx * dx + dz * dz;
     const minimumDistance = radius + obstacle.radius;
-
-    if (distanceSquared >= minimumDistance * minimumDistance) continue;
-
-    const distance = Math.sqrt(Math.max(distanceSquared, 1e-8));
-    const normalX = distance > 1e-4 ? dx / distance : 1;
-    const normalZ = distance > 1e-4 ? dz / distance : 0;
-    const penetration = minimumDistance - distance;
-    position.x += normalX * penetration;
-    position.z += normalZ * penetration;
-  }
-}
-
-function damagePlayer(state, enemy, player, direction) {
-  if (state.playerHitTimer > 0) return;
-
-  state.hp = Math.max(0, state.hp - enemy.contactDamage);
-  state.playerHitTimer = 0.78;
-  triggerPlayerHit();
-  player.position.addScaledVector(direction, -1.15);
-
-  if (state.hp <= 0 && !state.over) {
-    state.over = true;
-    state.paused = true;
-    document.getElementById('final-score').textContent =
-      'Reached Wave ' + state.level + ' with ' + state.kills +
-      ' enemies defeated. Final Score: ' + state.score.toLocaleString();
-    document.getElementById('gameover-modal').classList.add('is-visible');
-    import('./leaderboard.js').then(({ loadLeaderboard }) => loadLeaderboard());
-  }
-}
-
-function pushOutOfObstacles(position, radius) {
-  for (const obstacle of arenaObstacles) {
-    const dx = position.x - obstacle.x;
-    const dz = position.z - obstacle.z;
-    const distanceSquared = dx * dx + dz * dz;
-    const minimumDistance = radius + obstacle.radius;
     if (distanceSquared >= minimumDistance * minimumDistance) continue;
 
     const distance = Math.sqrt(Math.max(distanceSquared, 1e-8));
@@ -507,7 +471,7 @@ export function updateEnemies(dt, state, scene, player) {
   for (const enemy of enemies) {
     const data = enemy.userData;
     const toPlayer = new THREE.Vector3().subVectors(player.position, enemy.position).setY(0);
-    let distance = toPlayer.length();
+    let distance = Math.hypot(toPlayer.x, toPlayer.z);
 
     if (distance > 0.001) {
       toPlayer.normalize();
@@ -517,7 +481,11 @@ export function updateEnemies(dt, state, scene, player) {
         Math.PI * 2
       ) - Math.PI;
       enemy.rotation.y += angleDelta * (1 - Math.exp(-9 * dt));
+    } else {
+      toPlayer.set(Math.sin(enemy.rotation.y), 0, Math.cos(enemy.rotation.y));
+    }
 
+    if (distance > 0.001) {
       const stoppingDistance = data.colliderRadius + player.userData.colliderRadius + 0.68;
       if (distance > stoppingDistance) {
         enemy.position.addScaledVector(toPlayer, enemy.speed * dt);
@@ -554,7 +522,10 @@ export function updateEnemies(dt, state, scene, player) {
       enemy.position.addScaledVector(toPlayer, -overlap * 0.72);
       player.position.addScaledVector(toPlayer, overlap * 0.28);
       toPlayer.subVectors(player.position, enemy.position).setY(0).normalize();
-      distance = enemy.position.distanceTo(player.position);
+      distance = Math.hypot(
+        player.position.x - enemy.position.x,
+        player.position.z - enemy.position.z
+      );
     }
 
     data.animationTime += dt;
@@ -661,6 +632,17 @@ export function updateEnemies(dt, state, scene, player) {
     enemy.position.y = data.wings.length
       ? 0.28 + Math.sin(data.phase * 1.6) * 0.08
       : 0;
+
+    if (!data.wings.length) {
+      enemy.updateMatrixWorld(true);
+      for (const leg of data.legs) {
+        leg.foot.position.y = leg.baseFootY;
+        leg.foot.getWorldPosition(footWorldPosition);
+        if (footWorldPosition.y < 0) {
+          leg.foot.position.y -= footWorldPosition.y;
+        }
+      }
+    }
 
     if (data.weapon && enemy.archetype === 'cyclops' && !attacking) {
       data.weapon.rotation.x = Math.sin(data.phase * 0.55) * 0.045;
