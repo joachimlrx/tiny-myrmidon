@@ -67,9 +67,16 @@ pub async fn add_score(
     let entry = ScoreEntry::new(valid_name, payload.score, payload.wave);
 
     let mut scores = state.scores.write().await;
-    scores.push(entry.clone());
-    scores.sort_by(|a, b| b.score.cmp(&a.score).then_with(|| b.wave.cmp(&a.wave)));
-    scores.truncate(MAX_LEADERBOARD_ENTRIES);
+    let mut updated_scores = scores.clone();
+    updated_scores.push(entry.clone());
+    updated_scores.sort_by(|a, b| b.score.cmp(&a.score).then_with(|| b.wave.cmp(&a.wave)));
+    updated_scores.truncate(MAX_LEADERBOARD_ENTRIES);
+
+    state.persist_scores(&updated_scores).await.map_err(|error| {
+        tracing::error!(error = %error, "Failed to persist leaderboard");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    *scores = updated_scores;
 
     tracing::info!(
         client_ip = %client_ip,

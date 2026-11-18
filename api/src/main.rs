@@ -17,7 +17,11 @@ async fn main() {
         .unwrap_or_else(|_| "0".to_string())
         .parse::<usize>()
         .expect("TRUSTED_PROXY_HOPS must be a non-negative integer");
-    let state = AppState::new().with_trusted_proxy_hops(trusted_proxy_hops);
+    let state = match std::env::var_os("SCORE_STORE_PATH") {
+        Some(path) => AppState::from_file(path, trusted_proxy_hops)
+            .expect("Failed to load persistent leaderboard store"),
+        None => AppState::new().with_trusted_proxy_hops(trusted_proxy_hops),
+    };
     let app = create_app(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));

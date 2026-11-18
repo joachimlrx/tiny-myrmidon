@@ -122,3 +122,12 @@ Returned if `player_name` is empty, contains only spaces, or exceeds 30 characte
 ```text
 HTTP/1.1 400 Bad Request
 ```
+
+
+## 4. Persistence and deployment
+
+When `SCORE_STORE_PATH` is configured, the API loads the leaderboard from a JSON file at startup and atomically replaces that file after each accepted score. The Kubernetes manifest mounts a `ReadWriteOnce` PVC at `/data` and sets the path to `/data/scores.json`.
+
+This provides persistence across API pod restarts for the single-replica deployment. It is not a multi-replica database: keep the API at one replica while using the file store. For horizontal scaling or concurrent writers across pods, migrate the store to PostgreSQL.
+
+If the file is missing, the API starts with an empty leaderboard. If it contains invalid JSON, startup fails rather than silently discarding existing data. Back up the PVC before making storage changes.

@@ -82,3 +82,10 @@ graph TD
    2026-11-16T18:52:31.102Z INFO tiny_myrmidon_api::handlers: Recorded new hero score player="Hercules" score=9999 wave=15
    ```
 2. **Graceful Shutdown:** The Axum server traps `SIGINT` (Ctrl+C) and `SIGTERM` signals sent by Kubernetes during pod termination, allowing in-flight requests to complete before exiting.
+
+
+## 5. Leaderboard persistence
+
+The API can persist its sorted top-50 leaderboard to a JSON file through `SCORE_STORE_PATH`. Writes are serialized with the in-memory leaderboard lock, written to a temporary file and renamed into place. The Kubernetes deployment mounts a `ReadWriteOnce` local-path PVC at `/data`.
+
+This intentionally supports one API replica. A file-backed volume is not a substitute for a shared transactional database: do not scale the API horizontally until the persistence layer has been replaced by PostgreSQL or another shared database.
