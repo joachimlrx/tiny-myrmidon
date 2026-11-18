@@ -287,6 +287,54 @@ async fn add_score_rate_limits_excessive_requests() {
 }
 
 #[tokio::test]
+async fn rate_limit_uses_socket_peer_when_no_proxy_is_trusted() {
+    use axum::extract::ConnectInfo;
+    use std::net::SocketAddr;
+
+    let app = create_app(AppState::empty());
+    let first_peer: SocketAddr = "203.0.113.10:4000".parse().unwrap();
+    let second_peer: SocketAddr = "198.51.100.42:4000".parse().unwrap();
+
+    for index in 0..MAX_SUBMISSIONS_PER_WINDOW {
+        let payload = json!({
+            "player_name": format!("Direct_{index}"),
+            "score": 100,
+            "wave": 1
+        });
+        let request = Request::builder()
+            .method("POST")
+            .uri("/api/scores")
+            .header("content-type", "application/json")
+            .header("x-forwarded-for", "192.0.2.99")
+            .extension(ConnectInfo(first_peer))
+            .body(Body::from(serde_json::to_vec(&payload).unwrap()))
+            .unwrap();
+        assert_eq!(
+            app.clone().oneshot(request).await.unwrap().status(),
+            StatusCode::CREATED
+        );
+    }
+
+    let payload = json!({
+        "player_name": "Independent",
+        "score": 100,
+        "wave": 1
+    });
+    let request = Request::builder()
+        .method("POST")
+        .uri("/api/scores")
+        .header("content-type", "application/json")
+        .extension(ConnectInfo(second_peer))
+        .body(Body::from(serde_json::to_vec(&payload).unwrap()))
+        .unwrap();
+
+    assert_eq!(
+        app.oneshot(request).await.unwrap().status(),
+        StatusCode::CREATED
+    );
+}
+
+#[tokio::test]
 async fn leaderboard_truncation_limits_to_max_entries() {
     let state = AppState::empty();
     {

@@ -1,18 +1,24 @@
 use axum::{
-    extract::State,
+    extract::{ConnectInfo, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     Json,
 };
 use serde_json::json;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 
 use crate::models::{NewScore, ScoreEntry, MAX_LEADERBOARD_ENTRIES};
 use crate::AppState;
 
-fn extract_client_ip(headers: &HeaderMap, trusted_proxy_hops: usize) -> String {
+fn extract_client_ip(
+    headers: &HeaderMap,
+    trusted_proxy_hops: usize,
+    peer_address: Option<SocketAddr>,
+) -> String {
     if trusted_proxy_hops == 0 {
-        return "unknown".to_string();
+        return peer_address
+            .map(|address| address.ip().to_string())
+            .unwrap_or_else(|| "unknown".to_string());
     }
 
     let Some(forwarded_for) = headers
@@ -53,9 +59,11 @@ pub async fn get_scores(State(state): State<AppState>) -> impl IntoResponse {
 pub async fn add_score(
     State(state): State<AppState>,
     headers: HeaderMap,
+    peer: Option<ConnectInfo<SocketAddr>>,
     Json(payload): Json<NewScore>,
 ) -> Result<(StatusCode, Json<ScoreEntry>), StatusCode> {
-    let client_ip = extract_client_ip(&headers, state.trusted_proxy_hops);
+    let peer_address = peer.map(|ConnectInfo(address)| address);
+    let client_ip = extract_client_ip(&headers, state.trusted_proxy_hops, peer_address);
 
     if !state.check_rate_limit(&client_ip).await {
         tracing::warn!(client_ip = %client_ip, "Rate limit exceeded on POST /api/scores");
@@ -101,7 +109,16 @@ mod client_ip_tests {
         let mut headers = HeaderMap::new();
         headers.insert("x-forwarded-for", "198.51.100.99".parse().unwrap());
 
-        assert_eq!(extract_client_ip(&headers, 0), "unknown");
+        assert_eq!(extract_client_ip(&headers, 0, None), "unknown");
+    }
+
+    #[test]
+    fn uses_the_socket_peer_when_no_proxy_is_trusted() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-forwarded-for", "198.51.100.99".parse().unwrap());
+        let peer = "203.0.113.7:4321".parse().unwrap();
+
+        assert_eq!(extract_client_ip(&headers, 0, Some(peer)), "203.0.113.7");
     }
 
     #[test]
@@ -112,8 +129,8 @@ mod client_ip_tests {
             "203.0.113.200, 198.51.100.42".parse().unwrap(),
         );
 
-        assert_eq!(extract_client_ip(&headers, 1), "198.51.100.42");
-        assert_eq!(extract_client_ip(&headers, 2), "203.0.113.200");
+        assert_eq!(extract_client_ip(&headers, 1, None), "198.51.100.42");
+        assert_eq!(extract_client_ip(&headers, 2, None), "203.0.113.200");
     }
 
     #[test]
