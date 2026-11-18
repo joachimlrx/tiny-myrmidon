@@ -126,7 +126,7 @@ HTTP/1.1 400 Bad Request
 
 ## 4. Persistence and deployment
 
-When `SCORE_STORE_PATH` is configured, the API loads the leaderboard from a JSON file at startup and atomically replaces that file after each accepted score. The Kubernetes manifest mounts a `ReadWriteOnce` PVC at `/data` and sets the path to `/data/scores.json`.
+When `SCORE_STORE_PATH` is configured, the API loads the leaderboard from a JSON file at startup and writes and synchronizes a temporary file, atomically replaces that file, and synchronizes the parent directory after each accepted score. This improves durability across process or host crashes on filesystems that honor `fsync`. The Kubernetes manifest mounts a `ReadWriteOnce` PVC at `/data` and sets the path to `/data/scores.json`.
 
 This provides persistence across API pod restarts for the single-replica deployment. It is not a multi-replica database: keep the API at one replica while using the file store. For horizontal scaling or concurrent writers across pods, migrate the store to PostgreSQL.
 

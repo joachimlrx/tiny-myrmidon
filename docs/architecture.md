@@ -86,7 +86,7 @@ graph TD
 
 ## 5. Leaderboard persistence
 
-The API can persist its sorted top-50 leaderboard to a JSON file through `SCORE_STORE_PATH`. Writes are serialized with the in-memory leaderboard lock, written to a temporary file and renamed into place. The Kubernetes deployment mounts a `ReadWriteOnce` local-path PVC at `/data`.
+The API can persist its sorted top-50 leaderboard to a JSON file through `SCORE_STORE_PATH`. Writes are serialized with the in-memory leaderboard lock, written to a temporary file, flushed with `fsync`, renamed into place, and followed by a parent-directory `fsync`. The Kubernetes deployment mounts a `ReadWriteOnce` local-path PVC at `/data`.
 
 This intentionally supports one API replica. A file-backed volume is not a substitute for a shared transactional database: do not scale the API horizontally until the persistence layer has been replaced by PostgreSQL or another shared database.
 
