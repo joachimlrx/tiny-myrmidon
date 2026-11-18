@@ -568,3 +568,7 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
   gold.emissiveIntensity = state.upgradeAuraTimer > 0 ? 0.18 : 0.035;
   crimson.emissiveIntensity = state.upgradeAuraTimer > 0 ? 0.72 : 0.28;
 }
+
+// The handcrafted Three.js character is fully constructed synchronously above.
+// Expose readiness only after its geometry, materials, rigs and animation data exist.
+window.__myrmidonModelLoaded = true;
