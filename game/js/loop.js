@@ -1,134 +1,351 @@
-import * as THREE from 'https://unpkg.com/three@0.169.0/build/three.module.js';
-import { scene, camera, renderer } from './scene.js';
-import { state } from './state.js';
-import { player, orbitalGroup, orbShieldMesh } from './player.js';
-import { enemies, spawnEnemy, updateEnemies } from './enemies.js';
-import { spears, fireSpears, tickFireTimer, updateSpears } from './weapons.js';
-import { gems, spawnGem, updateGems } from './gems.js';
-import { showUpgrades } from './upgrades.js';
-import { updateHud } from './hud.js';
-import { keys, touchState, isTouchDevice, resetTouch, initInput } from './input.js';
-import { initLeaderboardSubmit } from './leaderboard.js';
+import * as THREE from 'three';
+
 import {
-  FRAME_DT_CAP,
-  CAMERA_HEIGHT,
-  CAMERA_Z_OFFSET,
   ARENA_RADIUS,
+  FRAME_DT_CAP,
+  CAMERA_TARGET_HEIGHT,
+  MAX_ENEMIES,
   SPAWN_INTERVAL_BASE,
   SPAWN_INTERVAL_MIN,
   SPAWN_LEVEL_SCALE,
 } from './config.js';
 
-if (!orbitalGroup.parent) {
-  orbitalGroup.add(orbShieldMesh);
-  orbitalGroup.visible = state.hasOrbital;
-  scene.add(orbitalGroup);
-}
+import { scene, camera, composer, updateScene, arenaObstacles } from './scene.js';
+import { state } from './state.js';
+import {
+  player,
+  orbitalGroup,
+  orbShieldMesh,
+  updatePlayerAnimation,
+} from './player.js';
+import {
+  enemies,
+  spawnEnemy,
+  updateEnemies,
+  updateEnemyEffects,
+  applyEnemyDamage,
+} from './enemies.js';
+import { fireSpears, tickFireTimer, updateSpears } from './weapons.js';
+import { spawnGem, updateGems } from './gems.js';
+import { showUpgrades } from './upgrades.js';
+import { updateHud, announceWave } from './hud.js';
+import {
+  keys,
+  touchState,
+  isTouchDevice,
+  resetTouch,
+  initInput,
+} from './input.js';
+import { initLeaderboardSubmit } from './leaderboard.js';
+import { createCameraControls } from './camera-controls.js';
+import { spawnFootstepDust, updateParticleEffects } from './particles.js';
 
-initInput(state, camera, renderer);
-initLeaderboardSubmit(state);
+const MAX_PLAYER_RADIUS = ARENA_RADIUS - 1;
+const ORBITAL_ROTATION_SPEED = 3.6;
+const ORBITAL_DAMAGE_INTERVAL = 0.22;
+
+const movementInput = new THREE.Vector2();
+const desiredPlayerVelocity = new THREE.Vector2();
+const playerVelocity = new THREE.Vector2();
+const cameraTarget = new THREE.Vector3();
+const footstepPosition = new THREE.Vector3();
+
+// Separate acceleration and braking make the hero responsive without feeling weightless.
+const PLAYER_ACCELERATION = 22;
+const PLAYER_DECELERATION = 16;
+const PLAYER_MIN_SPEED = 0.12;
+const orbitalShieldPosition = new THREE.Vector3();
+const orbitalKnockbackDirection = new THREE.Vector3();
+const cameraControls = createCameraControls(camera);
+
+let previousFrameTime = performance.now();
+let elapsedGameTime = 0;
+let orbitalDamageTimer = 0;
+let lastAnnouncedWave = state.level;
 
 const refreshHud = () => updateHud(state, isTouchDevice);
-const openUpgrades = () => showUpgrades(state, orbitalGroup, resetTouch, refreshHud);
 
-refreshHud();
+function showUpgradeSelection() {
+  showUpgrades(state, orbitalGroup, resetTouch, refreshHud);
+}
 
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+function startSession() {
+  if (state.started) return;
 
-const shieldWorldPos = new THREE.Vector3();
-let last = performance.now();
+  state.started = true;
+  state.paused = false;
 
-function loop(now) {
-  requestAnimationFrame(loop);
-  const dt = Math.min(FRAME_DT_CAP, (now - last) / 1000);
-  last = now;
+  document.body.classList.remove('menu-active');
+  refreshHud();
+  announceWave(state.level);
+}
 
-  if (state.paused || state.over) {
-    renderer.render(scene, camera);
-    return;
-  }
+function togglePause() {
+  const upgradeModal = document.getElementById('upgrade-modal');
+  const pauseModal = document.getElementById('pause-modal');
 
-  let dx = 0;
-  let dz = 0;
-  if (keys['w'] || keys['z'] || keys['arrowup']) dz -= 1;
-  if (keys['s'] || keys['arrowdown']) dz += 1;
-  if (keys['a'] || keys['q'] || keys['arrowleft']) dx -= 1;
-  if (keys['d'] || keys['arrowright']) dx += 1;
+  if (!state.started || state.over) return;
+  if (upgradeModal?.classList.contains('is-visible')) return;
+
+  state.paused = !state.paused;
+  pauseModal?.classList.toggle('is-visible', state.paused);
+
+  resetTouch();
+  refreshHud();
+}
+
+/** Combine keyboard and joystick input into one movement vector. */
+function readMovementInput() {
+  const right = keys.d || keys.arrowright;
+  const left = keys.q || keys.a || keys.arrowleft;
+  const down = keys.s || keys.arrowdown;
+  const up = keys.z || keys.w || keys.arrowup;
+
+  movementInput.set(
+    Number(Boolean(right)) - Number(Boolean(left)),
+    Number(Boolean(down)) - Number(Boolean(up)),
+  );
 
   if (touchState.active) {
-    dx += touchState.dx;
-    dz += touchState.dz;
+    movementInput.x += touchState.dx;
+    movementInput.y += touchState.dz;
   }
 
-  const moveLen = Math.hypot(dx, dz);
-  if (moveLen > 0) {
-    const norm = moveLen > 1 ? 1 / moveLen : 1;
-    player.position.x += dx * norm * state.speed * dt;
-    player.position.z += dz * norm * state.speed * dt;
-    player.rotation.y = Math.atan2(dx, dz);
-  }
+  return movementInput;
+}
 
-  const distFromCenter = Math.hypot(player.position.x, player.position.z);
-  if (distFromCenter > ARENA_RADIUS) {
-    const clampRatio = ARENA_RADIUS / distFromCenter;
-    player.position.x *= clampRatio;
-    player.position.z *= clampRatio;
-  }
+/** Move the hero with acceleration, inertia and collision-aware braking. */
+function updatePlayerMovement(deltaTime) {
+  const direction = cameraControls.toWorldDirection(readMovementInput());
+  const inputLength = direction.length();
+  const hasInput = inputLength > 0.08;
 
-  camera.position.set(
-    player.position.x,
-    CAMERA_HEIGHT,
-    player.position.z + CAMERA_Z_OFFSET
-  );
-  camera.lookAt(player.position);
-
-  state.spawnTimer -= dt;
-  if (state.spawnTimer <= 0) {
-    spawnEnemy(state, scene, player);
-    state.spawnTimer = Math.max(
-      SPAWN_INTERVAL_MIN,
-      SPAWN_INTERVAL_BASE - (state.level - 1) * SPAWN_LEVEL_SCALE
+  desiredPlayerVelocity.set(0, 0);
+  if (hasInput) {
+    direction.multiplyScalar(1 / inputLength);
+    desiredPlayerVelocity.set(
+      direction.x * state.speed,
+      direction.y * state.speed,
     );
   }
 
-  tickFireTimer(dt, state);
-  fireSpears(state, scene, player);
-  updateSpears(dt, state, scene, spawnGem);
+  const response = hasInput ? PLAYER_ACCELERATION : PLAYER_DECELERATION;
+  playerVelocity.lerp(
+    desiredPlayerVelocity,
+    1 - Math.exp(-response * deltaTime),
+  );
 
-  if (state.hasOrbital) {
-    orbitalGroup.position.copy(player.position);
-    state.orbitalAngle += 3.5 * dt;
-    orbitalGroup.rotation.y = state.orbitalAngle;
-    orbShieldMesh.getWorldPosition(shieldWorldPos);
+  if (playerVelocity.lengthSq() < PLAYER_MIN_SPEED * PLAYER_MIN_SPEED) {
+    playerVelocity.set(0, 0);
+  }
 
-    for (let i = enemies.length - 1; i >= 0; i--) {
-      const e = enemies[i];
-      const hitRadius = e.archetype === 'cyclops' ? 1.55 : 0.95;
-      if (shieldWorldPos.distanceTo(e.position) < hitRadius) {
-        e.hp -= state.dmg * 12 * dt;
-        const push = new THREE.Vector3().subVectors(e.position, player.position).setY(0).normalize();
-        e.position.addScaledVector(push, 6 * dt);
+  player.position.y = 0;
+  player.position.x += playerVelocity.x * deltaTime;
+  player.position.z += playerVelocity.y * deltaTime;
 
-        if (e.hp <= 0) {
-          spawnGem(scene, e.position, e.xpValue);
-          scene.remove(e);
-          enemies.splice(i, 1);
-          state.kills++;
-          state.score += e.scoreValue || 50;
-        }
-      }
+  // Face the actual travel direction, including the brief glide after releasing input.
+  if (playerVelocity.lengthSq() > PLAYER_MIN_SPEED * PLAYER_MIN_SPEED) {
+    const targetYaw = Math.atan2(playerVelocity.x, playerVelocity.y);
+    const yawDelta = THREE.MathUtils.euclideanModulo(
+      targetYaw - player.rotation.y + Math.PI,
+      Math.PI * 2
+    ) - Math.PI;
+    player.rotation.y += yawDelta * (1 - Math.exp(-14 * deltaTime));
+  }
+
+  const distanceFromCenter = Math.hypot(player.position.x, player.position.z);
+  if (distanceFromCenter > MAX_PLAYER_RADIUS) {
+    const normalX = player.position.x / distanceFromCenter;
+    const normalZ = player.position.z / distanceFromCenter;
+    player.position.set(
+      normalX * MAX_PLAYER_RADIUS,
+      0,
+      normalZ * MAX_PLAYER_RADIUS,
+    );
+
+    // Remove only the velocity pointing out of the arena.
+    const outwardSpeed = playerVelocity.x * normalX + playerVelocity.y * normalZ;
+    if (outwardSpeed > 0) {
+      playerVelocity.x -= normalX * outwardSpeed;
+      playerVelocity.y -= normalZ * outwardSpeed;
     }
   }
 
-  updateEnemies(dt, state, scene, player, resetTouch, refreshHud, spawnGem);
-  updateGems(dt, state, scene, player, openUpgrades, refreshHud, resetTouch);
-  refreshHud();
+  for (const obstacle of arenaObstacles) {
+    const dx = player.position.x - obstacle.x;
+    const dz = player.position.z - obstacle.z;
+    const distanceSquared = dx * dx + dz * dz;
+    const minimumDistance = player.userData.colliderRadius + obstacle.radius;
 
-  renderer.render(scene, camera);
+    if (distanceSquared >= minimumDistance * minimumDistance) continue;
+
+    const distance = Math.sqrt(Math.max(distanceSquared, 1e-8));
+    const normalX = distance > 1e-4 ? dx / distance : 1;
+    const normalZ = distance > 1e-4 ? dz / distance : 0;
+    const penetration = minimumDistance - distance;
+    player.position.x += normalX * penetration;
+    player.position.z += normalZ * penetration;
+
+    // Slide along obstacles instead of continuously pushing into them.
+    const inwardSpeed = playerVelocity.x * normalX + playerVelocity.y * normalZ;
+    if (inwardSpeed < 0) {
+      playerVelocity.x -= normalX * inwardSpeed;
+      playerVelocity.y -= normalZ * inwardSpeed;
+    }
+  }
+
+  return playerVelocity.lengthSq() > PLAYER_MIN_SPEED * PLAYER_MIN_SPEED;
 }
 
-requestAnimationFrame(loop);
+/** Keep the camera focused on the hero while allowing mouse orbit and zoom. */
+function updateCamera(deltaTime) {
+  cameraTarget.set(
+    player.position.x,
+    CAMERA_TARGET_HEIGHT,
+    player.position.z,
+  );
+  cameraControls.update(cameraTarget, deltaTime);
+}
+
+/** Spawn enemies at a pace that increases with the current level. */
+function updateEnemySpawning(deltaTime) {
+  state.spawnTimer -= deltaTime;
+
+  if (state.spawnTimer > 0 || enemies.length >= MAX_ENEMIES) return;
+
+  spawnEnemy(state, scene, player);
+
+  const intervalForLevel =
+    SPAWN_INTERVAL_BASE - (state.level - 1) * SPAWN_LEVEL_SCALE;
+
+  state.spawnTimer = Math.max(SPAWN_INTERVAL_MIN, intervalForLevel);
+}
+
+/** Move the Orbital Aegis and apply its periodic area damage. */
+function updateOrbitalShield(deltaTime) {
+  if (!state.hasOrbital) return;
+
+  orbitalGroup.position.copy(player.position);
+  state.orbitalAngle += ORBITAL_ROTATION_SPEED * deltaTime;
+  orbitalGroup.rotation.y = state.orbitalAngle;
+
+  orbitalDamageTimer -= deltaTime;
+  if (orbitalDamageTimer > 0) return;
+
+  orbitalDamageTimer = ORBITAL_DAMAGE_INTERVAL;
+  orbitalGroup.updateMatrixWorld(true);
+  orbShieldMesh.getWorldPosition(orbitalShieldPosition);
+
+  // Work backwards because defeated enemies are removed from the array.
+  for (let index = enemies.length - 1; index >= 0; index -= 1) {
+    const enemy = enemies[index];
+    const hitDistance = enemy.userData.colliderRadius + 0.5;
+
+    if (
+      enemy.dead ||
+      orbitalShieldPosition.distanceTo(enemy.position) >= hitDistance
+    ) {
+      continue;
+    }
+
+    orbitalKnockbackDirection
+      .subVectors(enemy.position, player.position)
+      .setY(0);
+
+    applyEnemyDamage(
+      enemy,
+      Math.max(1, state.dmg * 0.7),
+      state,
+      scene,
+      spawnGem,
+      orbitalKnockbackDirection,
+    );
+
+    if (!enemy.dead && orbitalKnockbackDirection.lengthSq() > 0) {
+      enemy.userData.knockback.add(
+        orbitalKnockbackDirection.normalize().multiplyScalar(1.1),
+      );
+    }
+  }
+}
+
+/** Update all gameplay systems for one active frame. */
+function updateGame(deltaTime) {
+  const isMoving = updatePlayerMovement(deltaTime);
+  const previousWalkPhase = player.userData.walkPhase;
+
+  updatePlayerAnimation(deltaTime, isMoving, state, Boolean(keys.shift));
+
+  const currentWalkPhase = player.userData.walkPhase;
+  if (isMoving && Math.floor(previousWalkPhase / Math.PI) !== Math.floor(currentWalkPhase / Math.PI)) {
+    const step = player.userData.legs[Math.floor(currentWalkPhase / Math.PI) % player.userData.legs.length];
+    step.foot.getWorldPosition(footstepPosition);
+    footstepPosition.y = 0.035;
+    spawnFootstepDust(scene, footstepPosition);
+  }
+  state.upgradeAuraTimer = Math.max(0, state.upgradeAuraTimer - deltaTime);
+
+  updateEnemySpawning(deltaTime);
+
+  tickFireTimer(deltaTime, state);
+  fireSpears(state, scene, player);
+  updateSpears(deltaTime, state, scene, spawnGem);
+
+  updateOrbitalShield(deltaTime);
+  updateEnemies(deltaTime, state, scene, player);
+  updateGems(
+    deltaTime,
+    state,
+    scene,
+    player,
+    showUpgradeSelection,
+    refreshHud,
+  );
+
+  updateEnemyEffects(deltaTime, scene);
+  updateParticleEffects(scene, deltaTime);
+  refreshHud();
+
+  if (state.level !== lastAnnouncedWave) {
+    lastAnnouncedWave = state.level;
+    announceWave(lastAnnouncedWave);
+  }
+}
+
+/** Render continuously, even while the title screen or pause menu is visible. */
+function renderFrame(currentTime) {
+  requestAnimationFrame(renderFrame);
+
+  const elapsedSinceLastFrame = (currentTime - previousFrameTime) / 1000;
+  const deltaTime = Math.min(FRAME_DT_CAP, elapsedSinceLastFrame);
+
+  previousFrameTime = currentTime;
+  elapsedGameTime += deltaTime;
+
+  // Camera controls and decorative arena lights remain active in menus.
+  updateScene(deltaTime, elapsedGameTime);
+  updateCamera(deltaTime);
+
+  if (state.paused || state.over) {
+    composer.render();
+    return;
+  }
+
+  updateGame(deltaTime);
+  composer.render();
+}
+
+function startGame() {
+  initInput(state, camera, togglePause, startSession);
+  initLeaderboardSubmit(state);
+
+  document.getElementById('start-button')?.addEventListener(
+    'click',
+    startSession,
+  );
+
+  refreshHud();
+  requestAnimationFrame(renderFrame);
+}
+
+startGame();

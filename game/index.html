@@ -1,274 +1,174 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#1c1917" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#b9d7e7">
   <title>Tiny Myrmidon 3D</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      -webkit-touch-callout: none;
-    }
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: #1c1917;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: #fef3c7;
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: none;
-    }
-    #hud {
-      position: absolute;
-      top: 14px;
-      left: 14px;
-      right: 14px;
-      pointer-events: none;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      z-index: 6;
-    }
-    .bar-bg {
-      width: min(320px, 65vw);
-      height: 14px;
-      background: #292524;
-      border-radius: 7px;
-      overflow: hidden;
-      border: 1px solid #78350f;
-    }
-    #hp-bar {
-      width: 100%;
-      height: 100%;
-      background: #dc2626;
-      transition: width 0.1s ease;
-    }
-    #xp-bar {
-      width: 0%;
-      height: 100%;
-      background: #f59e0b;
-      transition: width 0.1s ease;
-    }
-    #stats {
-      font-size: 13px;
-      font-weight: 700;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85);
-      letter-spacing: 0.4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    #upgrade-modal, #gameover-modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(12, 10, 9, 0.88);
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      z-index: 20;
-      padding: 16px;
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
-    }
-    .modal-box {
-      background: #1c1917;
-      border: 2px solid #b45309;
-      border-radius: 14px;
-      padding: 22px 24px;
-      text-align: center;
-      max-width: 520px;
-      width: 100%;
-      max-height: 90vh;
-      overflow-y: auto;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
-    }
-    .cards {
-      display: flex;
-      gap: 14px;
-      margin-top: 18px;
-      flex-wrap: wrap;
-      justify-content: center;
-      max-height: 70vh;
-      overflow-y: auto;
-    }
-    .card {
-      background: #292524;
-      border: 2px solid #f59e0b;
-      border-radius: 12px;
-      padding: 16px;
-      width: 180px;
-      cursor: pointer;
-      text-align: center;
-      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-    }
-    .card:hover, .card:active {
-      transform: translateY(-3px);
-      background: #78350f;
-      border-color: #fbbf24;
-    }
-    .card h3 {
-      margin: 0 0 6px 0;
-      font-size: 15px;
-      color: #fde68a;
-    }
-    .card p {
-      margin: 0;
-      font-size: 12px;
-      color: #e7e5e4;
-    }
-    button {
-      padding: 12px 20px;
-      font-size: 15px;
-      font-weight: 700;
-      border: none;
-      border-radius: 8px;
-      background: #d97706;
-      color: #fff;
-      cursor: pointer;
-      margin-top: 12px;
-      transition: background 0.15s ease;
-      touch-action: manipulation;
-    }
-    button:hover, button:active {
-      background: #b45309;
-    }
-    input[type="text"] {
-      padding: 11px 14px;
-      font-size: 15px;
-      border-radius: 8px;
-      border: 1px solid #78350f;
-      background: #292524;
-      color: #fef3c7;
-      outline: none;
-      width: 220px;
-      margin-right: 8px;
-    }
-    input[type="text"]:focus {
-      border-color: #f59e0b;
-    }
-    .leaderboard-table {
-      width: 100%;
-      margin-top: 14px;
-      border-collapse: collapse;
-      font-size: 12px;
-      text-align: left;
-    }
-    .leaderboard-table th {
-      border-bottom: 1px solid #78350f;
-      padding: 6px;
-      color: #f59e0b;
-    }
-    .leaderboard-table td {
-      padding: 6px;
-      border-bottom: 1px solid #292524;
-    }
-    .form-row {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin-top: 14px;
-    }
-    #joystick-base {
-      display: none;
-      position: fixed;
-      width: 120px;
-      height: 120px;
-      margin-left: -60px;
-      margin-top: -60px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(245, 158, 11, 0.22) 0%, rgba(120, 53, 15, 0.45) 100%);
-      border: 2px solid rgba(251, 191, 36, 0.6);
-      pointer-events: none;
-      z-index: 10;
-      transform: translate3d(0, 0, 0);
-    }
-    #joystick-knob {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 50px;
-      height: 50px;
-      margin-left: -25px;
-      margin-top: -25px;
-      border-radius: 50%;
-      background: radial-gradient(circle, #fde68a 0%, #d97706 100%);
-      border: 2px solid #fbbf24;
-      box-shadow: 0 0 10px rgba(245, 158, 11, 0.7);
-      pointer-events: none;
-      transform: translate3d(0, 0, 0);
-    }
 
-    @media (max-width: 640px) {
-      .modal-box {
-        padding: 16px 14px;
-      }
-      .card {
-        width: 100%;
-        max-width: 280px;
-      }
-      .form-row {
-        flex-direction: column;
-        gap: 8px;
-      }
-      input[type="text"] {
-        width: 100%;
-        margin-right: 0;
-      }
-      button {
-        width: 100%;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="./styles/base.css">
+  <link rel="stylesheet" href="./styles/hud.css">
+  <link rel="stylesheet" href="./styles/modals.css">
+  <link rel="stylesheet" href="./styles/joystick.css">
+  <link rel="stylesheet" href="./styles/menu.css">
 </head>
-<body>
-  <div id="hud">
-    <div class="bar-bg"><div id="hp-bar"></div></div>
-    <div class="bar-bg"><div id="xp-bar"></div></div>
-    <div id="stats">Wave 1 | Slain: 0 | Score: 0</div>
-  </div>
-
-  <div id="upgrade-modal">
-    <h2 style="margin: 0; font-size: 19px; text-align: center;">Olympian Favor! Choose a Blessing</h2>
-    <div class="cards" id="cards"></div>
-  </div>
-
-  <div id="gameover-modal">
-    <div class="modal-box">
-      <h1 style="margin: 0 0 8px 0; font-size: 22px;">The Myrmidon Has Fallen!</h1>
-      <p id="final-score" style="margin: 6px 0; font-size: 14px;"></p>
-
-      <div class="form-row" id="score-form">
-        <input type="text" id="player-name" placeholder="Hero Name (e.g. Achilles)" maxlength="24" />
-        <button id="submit-score-btn" type="button">Record Legend</button>
+<body class="menu-active">
+  <main>
+    <section id="hud" aria-label="Battle status">
+      <div class="bar-wrap">
+        <span class="bar-label">Vitality</span>
+        <div class="bar-bg"><div id="hp-bar"></div></div>
+        <span id="hp-label">100 / 100</span>
       </div>
-      <p id="submit-status" style="font-size: 12px; min-height: 16px; margin: 4px 0;"></p>
 
-      <h3 style="margin-top: 12px; margin-bottom: 4px; color: #f59e0b; font-size: 15px;">Hero Leaderboard</h3>
-      <table class="leaderboard-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Hero</th>
-            <th>Score</th>
-            <th>Wave</th>
-          </tr>
-        </thead>
-        <tbody id="leaderboard-body">
-          <tr><td colspan="4" style="text-align: center;">Loading...</td></tr>
-        </tbody>
-      </table>
+      <div class="bar-wrap">
+        <span class="bar-label">Aether</span>
+        <div class="bar-bg"><div id="xp-bar"></div></div>
+        <span id="xp-label">0 / 5 XP</span>
+      </div>
 
-      <button type="button" onclick="location.reload()" style="margin-top: 16px;">Fight Again</button>
+      <div class="hud-footer">
+        <span id="level-value">1</span>
+        <div id="stats">0 defeated · 0 renown</div>
+        <div id="cooldown-wrap">
+          <span>SPEAR</span>
+          <span id="cooldown-track"><span id="cooldown-fill"></span></span>
+        </div>
+      </div>
+    </section>
+
+    <div id="control-hint" aria-label="Keyboard and camera controls">
+      <span class="hint-title">MOVE</span>
+      <kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd>
+      <span class="hint-separator">·</span>
+      <span>DRAG TO ROTATE · WHEEL TO ZOOM</span>
     </div>
-  </div>
 
-  <div id="joystick-base">
-    <div id="joystick-knob"></div>
-  </div>
+    <section id="start-screen" class="menu-overlay" aria-labelledby="game-title">
+      <div class="menu-panel">
+        <p class="menu-eyebrow">
+          <span class="eyebrow-line"></span>
+          AN ANCIENT GREEK SURVIVAL
+          <span class="eyebrow-line"></span>
+        </p>
 
+        <h1 id="game-title" class="game-title">
+          TINY <span>MYRMIDON</span>
+        </h1>
+
+        <p class="menu-description">
+          Stand against the waves. Master the spear. Earn your place among legends.
+        </p>
+
+        <div class="menu-divider"><span></span></div>
+
+        <button id="start-button" class="menu-play-button" type="button">
+          ENTER THE ARENA <span aria-hidden="true">→</span>
+        </button>
+
+        <div class="menu-instructions">
+          <div class="instruction-block">
+            <span class="instruction-label">MOVE</span>
+            <div class="key-row" aria-label="Z Q S D">
+              <kbd>Z</kbd><kbd>Q</kbd><kbd>S</kbd><kbd>D</kbd>
+            </div>
+            <span class="instruction-note">WASD and arrows also work</span>
+          </div>
+
+          <div class="instruction-divider"></div>
+
+          <div class="instruction-block">
+            <span class="instruction-label">CAMERA</span>
+            <span class="mouse-icon" aria-hidden="true">↔</span>
+            <span class="instruction-note">Drag to rotate</span>
+            <span class="instruction-note">Scroll to zoom</span>
+          </div>
+
+          <div class="instruction-divider"></div>
+
+          <div class="instruction-block">
+            <span class="instruction-label">BATTLE</span>
+            <span class="battle-hint">Automatic spear combat</span>
+            <span class="instruction-note">Hold SHIFT: one hand · Release: two hands</span>
+            <span class="instruction-note">P / ESC to pause</span>
+          </div>
+        </div>
+
+        <p class="menu-footer">A HERO IS FORGED IN THE ARENA</p>
+      </div>
+    </section>
+
+    <button id="pause-btn" type="button">PAUSE</button>
+    <div id="wave-announcement" aria-live="polite"></div>
+
+    <section id="pause-modal" aria-label="Pause menu">
+      <div class="modal-box">
+        <span class="modal-kicker">THE ARENA IS SILENT</span>
+        <h1>PAUSED</h1>
+        <button id="resume-btn" type="button">RETURN TO BATTLE</button>
+        <button id="pause-restart-btn" type="button">RESTART RUN</button>
+      </div>
+    </section>
+
+    <section id="upgrade-modal" class="modal-overlay" aria-label="Choose an upgrade">
+      <h2 class="modal-title">Olympian Favor! Choose a Blessing</h2>
+      <div class="cards" id="cards"></div>
+    </section>
+
+    <section id="gameover-modal" class="modal-overlay" aria-label="Game over">
+      <div class="modal-box">
+        <h1 class="modal-title">The Myrmidon Has Fallen!</h1>
+        <p id="final-score" class="final-score"></p>
+
+        <form class="form-row" id="score-form">
+          <input
+            type="text"
+            id="player-name"
+            name="player_name"
+            placeholder="Hero Name (e.g. Achilles)"
+            maxlength="24"
+            autocomplete="off"
+            aria-label="Hero name"
+          >
+          <button id="submit-score-btn" type="submit">Record Legend</button>
+        </form>
+        <p id="submit-status" class="submit-status" aria-live="polite"></p>
+
+        <h2 class="leaderboard-title">Hero Leaderboard</h2>
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Hero</th>
+              <th scope="col">Score</th>
+              <th scope="col">Wave</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-body">
+            <tr><td colspan="4" class="table-empty">Loading...</td></tr>
+          </tbody>
+        </table>
+
+        <button type="button" id="restart-btn" class="restart-button">Fight Again</button>
+      </div>
+    </section>
+
+    <div id="joystick-base" aria-hidden="true">
+      <div id="joystick-knob"></div>
+    </div>
+  </main>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+      },
+      "integrity": {
+        "https://unpkg.com/three@0.169.0/build/three.module.js": "sha384-qOubuRxWZ0I7rXTjcuhcKNHKvPM7q0ztN8/82sJnxnyKS0OXTeB5FsIcysc2T9EY"
+      }
+    }
+  </script>
   <script type="module" src="./js/loop.js"></script>
 </body>
 </html>

@@ -1,72 +1,142 @@
-export const upgrades = [
+const UPGRADE_OPTIONS_TO_SHOW = 3;
+
+const upgrades = [
   {
     name: 'Spear of Achilles',
-    desc: '+25% Attack Speed',
-    apply: (state) => { state.fireRate *= 0.75; },
+    description: 'Reduce the spear throw cooldown by 20%.',
+    detail: 'FASTER STRIKES',
+    apply(state) {
+      state.fireRate = Math.max(0.18, state.fireRate * 0.8);
+    },
   },
   {
     name: 'Hoplite Salvo',
-    desc: '+1 Simultaneous Spear',
-    apply: (state) => { state.multiShot += 1; },
+    description: 'Throw one additional spear with every volley.',
+    detail: 'MULTI-SHOT',
+    apply(state) {
+      state.multiShot = Math.min(5, state.multiShot + 1);
+    },
   },
   {
     name: 'Sandals of Hermes',
-    desc: '+20% Movement Speed',
-    apply: (state) => { state.speed *= 1.2; },
+    description: 'Increase movement speed by 18%.',
+    detail: 'MOBILITY',
+    apply(state) {
+      state.speed *= 1.18;
+    },
   },
   {
     name: 'Forged Bronze',
-    desc: '+1 Damage Per Impact',
-    apply: (state) => { state.dmg += 1; },
+    description: 'Add one point of damage to every spear hit.',
+    detail: 'HEAVY IMPACT',
+    apply(state) {
+      state.dmg += 1;
+    },
   },
   {
     name: "Athena's Aegis",
-    desc: '+30 Max HP & Full Heal',
-    apply: (state) => {
+    description: 'Gain 30 maximum health and restore it all.',
+    detail: 'DIVINE VIGOR',
+    apply(state) {
       state.maxHp += 30;
       state.hp = state.maxHp;
     },
   },
   {
-    name: 'Orbital Shield',
-    desc: 'Rotating Aegis barrier crushing nearby foes',
-    apply: (state, orbitalGroup) => {
+    name: 'Orbital Aegis',
+    description: 'Summon a rotating bronze shield that strikes nearby foes.',
+    detail: 'AREA DEFENSE',
+    apply(state, orbitalGroup) {
       state.hasOrbital = true;
       orbitalGroup.visible = true;
     },
   },
 ];
 
-export function showUpgrades(state, orbitalGroup, resetTouch, updateHud) {
-  resetTouch();
-  state.paused = true;
+function chooseRandomUpgrades(numberOfOptions) {
+  const shuffledUpgrades = [...upgrades];
 
+  // Fisher-Yates gives every upgrade the same chance of selection.
+  for (let index = shuffledUpgrades.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+
+    [shuffledUpgrades[index], shuffledUpgrades[randomIndex]] =
+      [shuffledUpgrades[randomIndex], shuffledUpgrades[index]];
+  }
+
+  return shuffledUpgrades.slice(0, numberOfOptions);
+}
+
+function createUpgradeCard(upgrade, index, onChoose) {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'upgrade-card';
+  card.setAttribute(
+    'aria-label',
+    upgrade.name + ': ' + upgrade.description,
+  );
+
+  const number = document.createElement('span');
+  number.className = 'upgrade-index';
+  number.textContent = '0' + (index + 1);
+
+  const detail = document.createElement('span');
+  detail.className = 'upgrade-tag';
+  detail.textContent = upgrade.detail;
+
+  const title = document.createElement('strong');
+  title.textContent = upgrade.name;
+
+  const description = document.createElement('span');
+  description.textContent = upgrade.description;
+
+  card.append(number, detail, title, description);
+  card.addEventListener('click', onChoose);
+
+  return card;
+}
+
+function finishUpgradeSelection(modal, state) {
+  modal.classList.remove('is-visible');
+  state.paused = false;
+}
+
+function renderUpgradeSelection(state, orbitalGroup, refreshHud) {
   const modal = document.getElementById('upgrade-modal');
   const cards = document.getElementById('cards');
+
+  if (!modal || !cards) return;
+
   cards.replaceChildren();
 
-  [...upgrades]
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 3)
-    .forEach((u) => {
-      const div = document.createElement('div');
-      div.className = 'card';
+  const options = chooseRandomUpgrades(UPGRADE_OPTIONS_TO_SHOW);
 
-      const title = document.createElement('h3');
-      title.textContent = u.name;
+  options.forEach((upgrade, index) => {
+    const chooseUpgrade = () => {
+      upgrade.apply(state, orbitalGroup);
+      state.upgradeAuraTimer = 8;
+      state.pendingUpgrades = Math.max(0, state.pendingUpgrades - 1);
 
-      const description = document.createElement('p');
-      description.textContent = u.desc;
+      refreshHud();
 
-      div.append(title, description);
-      div.onclick = () => {
-        u.apply(state, orbitalGroup);
-        modal.style.display = 'none';
-        state.paused = false;
-        updateHud(state);
-      };
-      cards.appendChild(div);
-    });
+      if (state.pendingUpgrades > 0) {
+        renderUpgradeSelection(state, orbitalGroup, refreshHud);
+        return;
+      }
 
-  modal.style.display = 'flex';
+      finishUpgradeSelection(modal, state);
+    };
+
+    const card = createUpgradeCard(upgrade, index, chooseUpgrade);
+    cards.appendChild(card);
+  });
+
+  modal.classList.add('is-visible');
+}
+
+/** Pause the game and show the available blessings. */
+export function showUpgrades(state, orbitalGroup, resetTouch, refreshHud) {
+  resetTouch();
+  state.paused = true;
+  renderUpgradeSelection(state, orbitalGroup, refreshHud);
 }
