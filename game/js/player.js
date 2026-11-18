@@ -9,7 +9,7 @@ function makeClothTexture() {
   canvas.width = 256;
   canvas.height = 256;
   const context = canvas.getContext('2d');
-  context.fillStyle = '#5c1423';
+  context.fillStyle = '#160b12';
   context.fillRect(0, 0, 256, 256);
 
   for (let y = 0; y < 256; y += 4) {
@@ -35,7 +35,7 @@ function makeClothTexture() {
 }
 
 const bronze = new THREE.MeshPhysicalMaterial({
-  color: 0x8d603e,
+  color: 0x171b22,
   metalness: 0.72,
   roughness: 0.42,
   clearcoat: 0.2,
@@ -43,17 +43,17 @@ const bronze = new THREE.MeshPhysicalMaterial({
   envMapIntensity: 0.68
 });
 const gold = new THREE.MeshPhysicalMaterial({
-  color: 0xc8a16b,
+  color: 0x555d69,
   metalness: 0.82,
   roughness: 0.36,
   clearcoat: 0.24,
   clearcoatRoughness: 0.45,
   envMapIntensity: 0.76,
-  emissive: 0x241304,
+  emissive: 0x080b10,
   emissiveIntensity: 0.04
 });
 const red = new THREE.MeshStandardMaterial({
-  color: 0x782f39,
+  color: 0x260b13,
   map: makeClothTexture(),
   roughness: 0.92,
   side: THREE.DoubleSide
@@ -64,11 +64,12 @@ const dark = new THREE.MeshStandardMaterial({
   roughness: 0.68
 });
 const skin = new THREE.MeshPhysicalMaterial({
-  color: 0xa9785d,
+  color: 0x10141b,
   roughness: 0.82,
   clearcoat: 0.025
 });
-const black = new THREE.MeshStandardMaterial({ color: 0x11151c, roughness: 0.88 });
+const black = new THREE.MeshStandardMaterial({ color: 0x030509, metalness: 0.42, roughness: 0.36 });
+const crimson = new THREE.MeshStandardMaterial({ color: 0x8e1025, metalness: 0.58, roughness: 0.32, emissive: 0x30000a, emissiveIntensity: 0.28 });
 
 function mesh(parent, geometry, material, position, rotation) {
   const object = new THREE.Mesh(geometry, material);
@@ -97,7 +98,7 @@ const body = new THREE.Group();
 body.position.y = 0.88;
 player.add(body);
 
-// Layered linen tunic and sculpted bronze cuirass.
+// Layered black under-armor and sculpted obsidian cuirass.
 mesh(body, new THREE.CapsuleGeometry(0.31, 0.47, 7, 18), red, [0, 0, -0.015]);
 const breastplate = mesh(
   body,
@@ -131,14 +132,14 @@ mesh(body, new THREE.TorusGeometry(0.31, 0.028, 10, 36), gold, [0, -0.42, 0]);
 mesh(body, new THREE.CylinderGeometry(0.33, 0.35, 0.13, 24), dark, [0, -0.42, 0]);
 mesh(body, new THREE.TorusGeometry(0.34, 0.025, 8, 32), gold, [0, -0.49, 0]);
 
-// A proper helmet silhouette: crown, brow, cheek guards, nose guard and crest.
+// Fully enclosed war-helm: no skin or face is visible.
 const head = new THREE.Group();
 head.position.set(0, 0.6, 0.025);
 body.add(head);
-mesh(head, new THREE.SphereGeometry(0.225, 24, 18), skin, [0, -0.035, 0.035]);
+mesh(head, new THREE.SphereGeometry(0.225, 24, 18), black, [0, -0.035, 0.035]);
 const helmet = mesh(
   head,
-  new THREE.SphereGeometry(0.3, 32, 24, 0, Math.PI * 2, 0, Math.PI * 0.62),
+  new THREE.SphereGeometry(0.3, 32, 24, 0, Math.PI * 2, 0, Math.PI * 0.82),
   bronze,
   [0, 0.085, -0.005]
 );
@@ -150,12 +151,49 @@ mesh(head, new THREE.BoxGeometry(0.075, 0.26, 0.085), gold, [0, -0.085, 0.255]);
 for (const side of [-1, 1]) {
   mesh(head, new THREE.BoxGeometry(0.13, 0.22, 0.13), bronze, [side * 0.245, -0.13, 0.06], [0, 0, side * -0.2]);
 }
-const eyeLine = mesh(head, new THREE.BoxGeometry(0.27, 0.035, 0.025), black, [0, -0.015, 0.248]);
-eyeLine.material = black;
+const eyeLine = mesh(head, new THREE.BoxGeometry(0.255, 0.022, 0.018), crimson, [0, -0.015, 0.265]);
+eyeLine.material = crimson;
+mesh(head, new THREE.BoxGeometry(0.34, 0.18, 0.075), black, [0, -0.17, 0.205], [0.16, 0, 0]);
+mesh(head, new THREE.ConeGeometry(0.055, 0.19, 5), gold, [0, -0.23, 0.255], [Math.PI, 0, 0]);
+for (const side of [-1, 1]) {
+  mesh(head, new THREE.BoxGeometry(0.045, 0.19, 0.055), crimson, [side * 0.145, -0.015, 0.25], [0, 0, side * 0.12]);
+}
 
-const crest = mesh(head, new THREE.CapsuleGeometry(0.075, 0.43, 6, 12), red, [0, 0.39, -0.04], [0, 0, -0.1]);
+const crest = mesh(head, new THREE.CapsuleGeometry(0.055, 0.48, 6, 12), black, [0, 0.39, -0.04], [0, 0, -0.1]);
 crest.scale.set(0.9, 1.06, 1.55);
-mesh(head, new THREE.SphereGeometry(0.08, 14, 10), gold, [0, 0.55, -0.04]);
+mesh(head, new THREE.SphereGeometry(0.065, 14, 10), crimson, [0, 0.55, -0.04]);
+
+
+// Reinforced pauldrons, layered faulds and sharp silhouette accents.
+for (const side of [-1, 1]) {
+  const pauldron = mesh(body, new THREE.SphereGeometry(0.245, 24, 18), bronze,
+    [side * 0.405, 0.205, 0.005]);
+  pauldron.scale.set(1.16, 0.72, 1.08);
+  mesh(body, new THREE.ConeGeometry(0.075, 0.24, 6), gold,
+    [side * 0.53, 0.19, 0.015], [0, 0, side * -0.52]);
+  mesh(body, new THREE.ConeGeometry(0.045, 0.17, 5), crimson,
+    [side * 0.34, 0.39, 0.04], [0, 0, side * 0.22]);
+  // Rivets on the shoulder plates.
+  for (let i = 0; i < 3; i += 1) {
+    mesh(body, new THREE.SphereGeometry(0.025, 8, 6), gold,
+      [side * (0.34 + i * 0.07), 0.24, 0.19]);
+  }
+}
+// Raised chest crest: a narrow crimson blade over the breastplate.
+mesh(body, new THREE.ConeGeometry(0.105, 0.32, 5), crimson,
+  [0, 0.12, 0.39], [0, 0, Math.PI]);
+mesh(body, new THREE.BoxGeometry(0.035, 0.31, 0.025), gold, [0, 0.13, 0.405]);
+// Overlapping armored skirt plates.
+for (const side of [-1, 1]) {
+  for (let row = 0; row < 2; row += 1) {
+    const fauld = mesh(body, new THREE.BoxGeometry(0.19, 0.27, 0.09), bronze,
+      [side * (0.17 + row * 0.025), -0.49 - row * 0.12, 0.19],
+      [0.16, 0, side * (0.08 + row * 0.08)]);
+    fauld.scale.set(1, 1, 1.1);
+    mesh(body, new THREE.BoxGeometry(0.025, 0.19, 0.018), crimson,
+      [side * (0.17 + row * 0.025), -0.49 - row * 0.12, 0.24]);
+  }
+}
 
 const footWorldPosition = new THREE.Vector3();
 const legs = [];
@@ -209,7 +247,7 @@ for (const side of [-1, 1]) {
   mesh(body, new THREE.BoxGeometry(0.025, 1.2, 0.025), gold, [side * 0.49, -0.18, -0.275]);
 }
 
-// Shield: bronze boss, raised rim, radial boss details and a clean silhouette.
+// Heavy black shield with gunmetal edging and a crimson war sigil.
 export const shieldRig = new THREE.Group();
 shieldRig.position.set(-0.28, 0.04, -0.38);
 shieldRig.rotation.y = Math.PI;
@@ -231,7 +269,7 @@ for (let index = 0; index < 8; index += 1) {
   stud.scale.z = 0.55;
 }
 
-// A held ash spear with a leaf-shaped, polished bronze point.
+// A dark war spear with a blood-red steel point.
 export const spearRig = new THREE.Group();
 spearRig.position.set(0.42, 0.15, 0.13);
 body.add(spearRig);
@@ -243,8 +281,8 @@ const heldShaft = mesh(
   [Math.PI / 2, 0, 0]
 );
 heldShaft.scale.x = 1.02;
-mesh(spearRig, new THREE.CylinderGeometry(0.047, 0.042, 0.15, 10), gold, [0, 0, 1.12], [Math.PI / 2, 0, 0]);
-mesh(spearRig, new THREE.ConeGeometry(0.095, 0.36, 10), gold, [0, 0, 1.36], [Math.PI / 2, 0, 0]);
+mesh(spearRig, new THREE.CylinderGeometry(0.047, 0.042, 0.15, 10), crimson, [0, 0, 1.12], [Math.PI / 2, 0, 0]);
+mesh(spearRig, new THREE.ConeGeometry(0.095, 0.36, 10), crimson, [0, 0, 1.36], [Math.PI / 2, 0, 0]);
 mesh(spearRig, new THREE.TorusGeometry(0.037, 0.013, 6, 12), gold, [0, 0, 1.12], [Math.PI / 2, 0, 0]);
 export const spearTip = new THREE.Object3D();
 spearTip.position.set(0, 0, 1.54);
@@ -276,80 +314,17 @@ scene.add(player);
 // Prefer the bundled, rigged GLTF asset; the handcrafted Three.js model above
 // remains visible as a resilient fallback if the asset cannot be loaded.
 const gltfLoader = new GLTFLoader();
-gltfLoader.load(
-  './models/myrmidon.gltf',
-  (gltf) => {
-    const model = gltf.scene;
-    model.name = 'MyrmidonGLTF';
-    model.traverse((object) => {
-      if (!object.isMesh) return;
-      object.castShadow = true;
-      object.receiveShadow = true;
-      if (object.material) {
-        object.material.envMapIntensity = 0.85;
-      }
-    });
-
-    for (const child of player.children) {
-      if (child !== shadow) child.visible = false;
-    }
-    player.add(model);
-    window.__myrmidonModelLoaded = true;
-
-    const mixer = new THREE.AnimationMixer(model);
-    const clips = new Map(gltf.animations.map((clip) => [clip.name, clip]));
-    const runClip = clips.get('Run');
-    const attackClip = clips.get('SpearAttack');
-    const capeClip = clips.get('CapeFlutter');
-
-    const runAction = runClip ? mixer.clipAction(runClip) : null;
-    if (runAction) {
-      runAction.setLoop(THREE.LoopRepeat, Infinity);
-      runAction.play();
-      runAction.setEffectiveWeight(0);
-    }
-
-    const attackAction = attackClip ? mixer.clipAction(attackClip) : null;
-    if (attackAction) {
-      attackAction.setLoop(THREE.LoopOnce, 1);
-      attackAction.setDuration(0.82);
-      attackAction.clampWhenFinished = true;
-      if (player.userData.attackTimer > 0) {
-        attackAction.reset().play();
-        player.userData.gltfAttackActive = true;
-      }
-    }
-
-    const capeAction = capeClip ? mixer.clipAction(capeClip) : null;
-    if (capeAction) {
-      capeAction.setLoop(THREE.LoopRepeat, Infinity);
-      capeAction.setEffectiveWeight(0.72);
-      capeAction.play();
-    }
-
-    Object.assign(player.userData, {
-      gltfModel: model,
-      gltfMixer: mixer,
-      gltfRunAction: runAction,
-      gltfAttackAction: attackAction,
-      gltfCapeAction: capeAction,
-      gltfCrest: model.getObjectByName('Crest'),
-      gltfReady: true
-    });
-  },
-  undefined,
-  (error) => {
-    console.warn('Could not load the bundled Myrmidon GLTF; using the procedural model.', error);
-  }
-);
+// The bundled GLTF is only a primitive placeholder, so keep the detailed
+// procedural black-knight visible instead of replacing it with that asset.
+window.__myrmidonModelLoaded = false;
 
 export const orbitalGroup = new THREE.Group();
 const orbitalMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0x9cc9d8,
+  color: 0x8e1025,
   metalness: 0.48,
   roughness: 0.22,
   clearcoat: 0.8,
-  emissive: 0x286a83,
+  emissive: 0x650014,
   emissiveIntensity: 0.42
 });
 export const orbShieldMesh = mesh(
@@ -526,6 +501,7 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
   data.shadow.material.opacity = 0.42 + idleWeight * 0.025
     + Math.abs(stride) * data.moveBlend * 0.025;
 
-  bronze.emissive.setHex(state.upgradeAuraTimer > 0 ? 0x2b190d : 0x000000);
+  bronze.emissive.setHex(state.upgradeAuraTimer > 0 ? 0x30000a : 0x000000);
   gold.emissiveIntensity = state.upgradeAuraTimer > 0 ? 0.18 : 0.035;
+  crimson.emissiveIntensity = state.upgradeAuraTimer > 0 ? 0.72 : 0.28;
 }
