@@ -17,6 +17,7 @@ try {
   await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
   await page.locator('#start-screen').waitFor({ state: 'visible', timeout: 30000 });
   await page.locator('canvas').waitFor({ state: 'attached', timeout: 30000 });
+  await page.waitForFunction(() => window.__myrmidonModelLoaded === true, null, { timeout: 15000 });
 
   await page.locator('#start-button').click();
   await page.waitForFunction(
