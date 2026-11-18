@@ -2,7 +2,7 @@ use axum::{
     extract::{rejection::JsonRejection, ConnectInfo, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
-    Json,
+    Extension, Json,
 };
 use serde::Serialize;
 use serde_json::json;
@@ -96,10 +96,10 @@ pub async fn get_scores(State(state): State<AppState>) -> impl IntoResponse {
 pub async fn add_score(
     State(state): State<AppState>,
     headers: HeaderMap,
-    peer: Option<ConnectInfo<SocketAddr>>,
+    peer: Option<Extension<ConnectInfo<SocketAddr>>>,
     payload: Result<Json<NewScore>, JsonRejection>,
 ) -> Result<(StatusCode, Json<ScoreEntry>), ApiError> {
-    let peer_address = peer.map(|ConnectInfo(address)| address);
+    let peer_address = peer.map(|Extension(ConnectInfo(address))| address);
     let client_ip = extract_client_ip(&headers, state.trusted_proxy_hops, peer_address);
 
     if !state.check_rate_limit(&client_ip).await {
