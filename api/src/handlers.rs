@@ -5,28 +5,37 @@ use axum::{
     Json,
 };
 use serde_json::json;
+use std::net::IpAddr;
 
 use crate::models::{NewScore, ScoreEntry, MAX_LEADERBOARD_ENTRIES};
 use crate::AppState;
 
-fn extract_client_ip(headers: &HeaderMap) -> String {
-    if let Some(xff) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
-        if let Some(first_ip) = xff.split(',').next() {
-            let trimmed = first_ip.trim();
-            if !trimmed.is_empty() && trimmed.len() <= 45 {
-                return trimmed.to_string();
-            }
-        }
+fn extract_client_ip(headers: &HeaderMap, trusted_proxy_hops: usize) -> String {
+    if trusted_proxy_hops == 0 {
+        return "unknown".to_string();
     }
 
-    if let Some(real_ip) = headers.get("x-real-ip").and_then(|v| v.to_str().ok()) {
-        let trimmed = real_ip.trim();
-        if !trimmed.is_empty() && trimmed.len() <= 45 {
-            return trimmed.to_string();
-        }
-    }
+    let Some(forwarded_for) = headers
+        .get("x-forwarded-for")
+        .and_then(|value| value.to_str().ok())
+    else {
+        return "unknown".to_string();
+    };
 
-    "unknown".to_string()
+    let addresses: Vec<&str> = forwarded_for
+        .split(',')
+        .map(str::trim)
+        .filter(|address| !address.is_empty())
+        .collect();
+
+    let Some(index) = addresses.len().checked_sub(trusted_proxy_hops) else {
+        return "unknown".to_string();
+    };
+
+    addresses[index]
+        .parse::<IpAddr>()
+        .map(|address| address.to_string())
+        .unwrap_or_else(|_| "unknown".to_string())
 }
 
 pub async fn health_check() -> impl IntoResponse {
@@ -46,7 +55,7 @@ pub async fn add_score(
     headers: HeaderMap,
     Json(payload): Json<NewScore>,
 ) -> Result<(StatusCode, Json<ScoreEntry>), StatusCode> {
-    let client_ip = extract_client_ip(&headers);
+    let client_ip = extract_client_ip(&headers, state.trusted_proxy_hops);
 
     if !state.check_rate_limit(&client_ip).await {
         tracing::warn!(client_ip = %client_ip, "Rate limit exceeded on POST /api/scores");
@@ -71,4 +80,39 @@ pub async fn add_score(
     );
 
     Ok((StatusCode::CREATED, Json(entry)))
+}
+
+
+#[cfg(test)]
+mod client_ip_tests {
+    use super::*;
+
+    #[test]
+    fn ignores_forwarded_headers_without_a_trusted_proxy() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-forwarded-for", "198.51.100.99".parse().unwrap());
+
+        assert_eq!(extract_client_ip(&headers, 0), "unknown");
+    }
+
+    #[test]
+    fn selects_the_client_address_before_the_trusted_proxy_chain() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-forwarded-for",
+            "203.0.113.200, 198.51.100.42".parse().unwrap(),
+        );
+
+        assert_eq!(extract_client_ip(&headers, 1), "198.51.100.42");
+        assert_eq!(extract_client_ip(&headers, 2), "203.0.113.200");
+    }
+
+    #[test]
+    fn rejects_incomplete_or_invalid_forwarded_chains() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-forwarded-for", "not-an-ip".parse().unwrap());
+
+        assert_eq!(extract_client_ip(&headers, 1), "unknown");
+        assert_eq!(extract_client_ip(&headers, 2), "unknown");
+    }
 }

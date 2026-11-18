@@ -32,6 +32,7 @@ const MAX_TRACKED_IPS: usize = 4096;
 pub struct AppState {
     pub scores: Arc<RwLock<Vec<ScoreEntry>>>,
     pub submission_timestamps: Arc<Mutex<HashMap<String, VecDeque<Instant>>>>,
+    pub trusted_proxy_hops: usize,
 }
 
 impl AppState {
@@ -43,6 +44,7 @@ impl AppState {
                 ScoreEntry::new("Ajax".into(), 2100, 5),
             ])),
             submission_timestamps: Arc::new(Mutex::new(HashMap::new())),
+            trusted_proxy_hops: 0,
         }
     }
 
@@ -50,15 +52,20 @@ impl AppState {
         Self {
             scores: Arc::new(RwLock::new(Vec::new())),
             submission_timestamps: Arc::new(Mutex::new(HashMap::new())),
+            trusted_proxy_hops: 0,
         }
+    }
+
+    pub fn with_trusted_proxy_hops(mut self, trusted_proxy_hops: usize) -> Self {
+        self.trusted_proxy_hops = trusted_proxy_hops;
+        self
     }
 
     pub async fn check_rate_limit(&self, client_ip: &str) -> bool {
         let now = Instant::now();
         let mut map = self.submission_timestamps.lock().await;
 
-        // Evict stale IP entries to prevent unbounded memory growth under IP-spoofing floods
-        if map.len() >= MAX_TRACKED_IPS {
+        if !map.contains_key(client_ip) && map.len() >= MAX_TRACKED_IPS {
             map.retain(|_, queue| {
                 while let Some(&oldest) = queue.front() {
                     if now.duration_since(oldest) > RATE_LIMIT_WINDOW {
@@ -69,6 +76,10 @@ impl AppState {
                 }
                 !queue.is_empty()
             });
+
+            if map.len() >= MAX_TRACKED_IPS {
+                return false;
+            }
         }
 
         let timestamps = map.entry(client_ip.to_string()).or_default();
@@ -132,4 +143,44 @@ pub fn create_app(state: AppState) -> Router {
         .layer(build_cors_layer())
         .layer(TraceLayer::new_for_http())
         .with_state(state)
+}
+
+
+#[cfg(test)]
+mod rate_limit_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn rate_limiter_never_tracks_more_than_the_configured_ip_limit() {
+        let state = AppState::empty();
+        {
+            let mut tracked = state.submission_timestamps.lock().await;
+            for index in 0..MAX_TRACKED_IPS {
+                tracked.insert(
+                    format!("192.0.2.{index}"),
+                    VecDeque::from([Instant::now()]),
+                );
+            }
+        }
+
+        assert!(!state.check_rate_limit("198.51.100.1").await);
+        assert_eq!(state.submission_timestamps.lock().await.len(), MAX_TRACKED_IPS);
+    }
+
+    #[tokio::test]
+    async fn rate_limiter_keeps_existing_clients_available_at_capacity() {
+        let state = AppState::empty();
+        {
+            let mut tracked = state.submission_timestamps.lock().await;
+            for index in 0..MAX_TRACKED_IPS {
+                tracked.insert(
+                    format!("192.0.2.{index}"),
+                    VecDeque::from([Instant::now()]),
+                );
+            }
+        }
+
+        assert!(state.check_rate_limit("192.0.2.0").await);
+        assert_eq!(state.submission_timestamps.lock().await.len(), MAX_TRACKED_IPS);
+    }
 }

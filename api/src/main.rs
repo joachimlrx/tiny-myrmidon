@@ -13,7 +13,11 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let state = AppState::new();
+    let trusted_proxy_hops = std::env::var("TRUSTED_PROXY_HOPS")
+        .unwrap_or_else(|_| "0".to_string())
+        .parse::<usize>()
+        .expect("TRUSTED_PROXY_HOPS must be a non-negative integer");
+    let state = AppState::new().with_trusted_proxy_hops(trusted_proxy_hops);
     let app = create_app(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));

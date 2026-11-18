@@ -318,7 +318,7 @@ async fn leaderboard_truncation_limits_to_max_entries() {
 
 #[tokio::test]
 async fn rate_limit_is_isolated_per_client_ip_and_security_headers_are_present() {
-    let app = create_app(AppState::empty());
+    let app = create_app(AppState::empty().with_trusted_proxy_hops(1));
 
     for i in 0..MAX_SUBMISSIONS_PER_WINDOW {
         let payload = json!({

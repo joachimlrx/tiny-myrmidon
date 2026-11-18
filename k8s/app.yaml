@@ -91,6 +91,9 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
+          env:
+            - name: TRUSTED_PROXY_HOPS
+              value: "1"
           securityContext:
             runAsNonRoot: true
             runAsUser: 10001
@@ -165,7 +168,14 @@ spec:
     - Ingress
     - Egress
   ingress:
-    - ports:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
         - protocol: TCP
           port: 3000
   egress: []
@@ -182,7 +192,14 @@ spec:
     - Ingress
     - Egress
   ingress:
-    - ports:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
         - protocol: TCP
           port: 8080
   egress: []
