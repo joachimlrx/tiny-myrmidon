@@ -191,7 +191,7 @@ mod client_ip_tests {
         let mut headers = HeaderMap::new();
         headers.insert("x-forwarded-for", "not-an-ip".parse().unwrap());
 
-        assert_eq!(extract_client_ip(&headers, 1), "unknown");
-        assert_eq!(extract_client_ip(&headers, 2), "unknown");
+        assert_eq!(extract_client_ip(&headers, 1, None), "unknown");
+        assert_eq!(extract_client_ip(&headers, 2, None), "unknown");
     }
 }
