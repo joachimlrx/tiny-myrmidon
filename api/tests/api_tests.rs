@@ -97,6 +97,25 @@ async fn add_score_with_valid_payload_persists_and_sorts() {
 }
 
 #[tokio::test]
+async fn malformed_json_returns_a_consistent_json_error() {
+    let app = create_app(AppState::empty());
+    let request = Request::builder()
+        .method("POST")
+        .uri("/api/scores")
+        .header("content-type", "application/json")
+        .body(Body::from("{invalid"))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(response.headers().get(header::CONTENT_TYPE).unwrap(), "application/json");
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let error: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(error["error"], "invalid_json");
+    assert!(error["message"].as_str().is_some());
+}
+
+#[tokio::test]
 async fn add_score_with_empty_name_returns_bad_request() {
     let app = create_app(AppState::empty());
 
@@ -115,6 +134,9 @@ async fn add_score_with_empty_name_returns_bad_request() {
 
     let response = app.oneshot(req).await.unwrap();
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let error: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(error["error"], "invalid_score");
 }
 
 #[tokio::test]
@@ -284,6 +306,9 @@ async fn add_score_rate_limits_excessive_requests() {
 
     let overflow_res = app.oneshot(overflow_req).await.unwrap();
     assert_eq!(overflow_res.status(), StatusCode::TOO_MANY_REQUESTS);
+    let body = overflow_res.into_body().collect().await.unwrap().to_bytes();
+    let error: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(error["error"], "rate_limit_exceeded");
 }
 
 #[tokio::test]

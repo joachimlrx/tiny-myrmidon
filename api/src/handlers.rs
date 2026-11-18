@@ -1,14 +1,42 @@
 use axum::{
-    extract::{ConnectInfo, State},
+    extract::{rejection::JsonRejection, ConnectInfo, State},
     http::{HeaderMap, StatusCode},
-    response::IntoResponse,
+    response::{IntoResponse, Response},
     Json,
 };
+use serde::Serialize;
 use serde_json::json;
 use std::net::{IpAddr, SocketAddr};
 
 use crate::models::{NewScore, ScoreEntry, MAX_LEADERBOARD_ENTRIES};
 use crate::AppState;
+
+#[derive(Serialize)]
+struct ApiErrorBody {
+    error: &'static str,
+    message: String,
+}
+
+struct ApiError {
+    status: StatusCode,
+    code: &'static str,
+    message: String,
+}
+
+impl ApiError {
+    fn new(status: StatusCode, code: &'static str, message: impl Into<String>) -> Self {
+        Self { status, code, message: message.into() }
+    }
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        (
+            self.status,
+            Json(ApiErrorBody { error: self.code, message: self.message }),
+        ).into_response()
+    }
+}
 
 fn extract_client_ip(
     headers: &HeaderMap,
@@ -60,17 +88,30 @@ pub async fn add_score(
     State(state): State<AppState>,
     headers: HeaderMap,
     peer: Option<ConnectInfo<SocketAddr>>,
-    Json(payload): Json<NewScore>,
-) -> Result<(StatusCode, Json<ScoreEntry>), StatusCode> {
+    payload: Result<Json<NewScore>, JsonRejection>,
+) -> Result<(StatusCode, Json<ScoreEntry>), ApiError> {
     let peer_address = peer.map(|ConnectInfo(address)| address);
     let client_ip = extract_client_ip(&headers, state.trusted_proxy_hops, peer_address);
 
     if !state.check_rate_limit(&client_ip).await {
         tracing::warn!(client_ip = %client_ip, "Rate limit exceeded on POST /api/scores");
-        return Err(StatusCode::TOO_MANY_REQUESTS);
+        return Err(ApiError::new(
+            StatusCode::TOO_MANY_REQUESTS,
+            "rate_limit_exceeded",
+            "Too many score submissions. Try again later.",
+        ));
     }
 
-    let valid_name = payload.validate().map_err(|_| StatusCode::BAD_REQUEST)?;
+    let Json(payload) = payload.map_err(|_| {
+        ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "invalid_json",
+            "Request body must be valid JSON containing player_name, score, and wave.",
+        )
+    })?;
+    let valid_name = payload.validate().map_err(|message| {
+        ApiError::new(StatusCode::BAD_REQUEST, "invalid_score", message)
+    })?;
 
     let entry = ScoreEntry::new(valid_name, payload.score, payload.wave);
 
@@ -85,7 +126,11 @@ pub async fn add_score(
         .await
         .map_err(|error| {
             tracing::error!(error = %error, "Failed to persist leaderboard");
-            StatusCode::INTERNAL_SERVER_ERROR
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "persistence_failed",
+                "The score could not be saved.",
+            )
         })?;
     *scores = updated_scores;
 

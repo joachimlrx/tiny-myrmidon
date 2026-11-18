@@ -117,10 +117,23 @@ curl -i -X POST http://localhost:8080/api/scores \
 }
 ```
 
-### Error Response (`400 Bad Request`)
-Returned if `player_name` is empty, contains only spaces, or exceeds 30 characters.
-```text
-HTTP/1.1 400 Bad Request
+### Error Responses
+
+All score-submission errors use the same JSON shape: `error` is a stable machine-readable code and `message` is a human-readable explanation.
+
+| Status | Error code | When it is returned |
+| :--- | :--- | :--- |
+| `400 Bad Request` | `invalid_json` | The body is malformed JSON or does not contain the required fields with the expected types. |
+| `400 Bad Request` | `invalid_score` | The score fails name, wave, or plausibility validation. |
+| `429 Too Many Requests` | `rate_limit_exceeded` | The client exceeds 10 submissions per 10-second window. |
+| `500 Internal Server Error` | `persistence_failed` | The leaderboard could not be saved. |
+
+Example (`400 Bad Request`):
+```json
+{
+  "error": "invalid_score",
+  "message": "Player name cannot be empty"
+}
 ```
 
 
