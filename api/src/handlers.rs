@@ -17,7 +17,7 @@ struct ApiErrorBody {
     message: String,
 }
 
-struct ApiError {
+pub struct ApiError {
     status: StatusCode,
     code: &'static str,
     message: String,
