@@ -147,6 +147,7 @@ jobs:
             echo "Checking $script"
             node --input-type=module --check < "$script"
           done
+          node --check scripts/load-test.mjs
 
       - name: Generate API image SBOM
         uses: anchore/sbom-action@v0

@@ -39,7 +39,7 @@ graph TD
 ## 2. Component Breakdown
 
 ### 2.1. Frontend Game (`game/`)
-* **Core Technology:** Three.js (r169) rendered via WebGL directly in modern browsers.
+* **Core Technology:** Three.js (r169) rendered via WebGL directly in modern browsers. The import map pins the CDN version and provides an integrity hash for the core module; the addon modules remain a runtime dependency on unpkg. The Nginx Content Security Policy allowlists that host for module loading while keeping API connections restricted to the same origin. A local bundle would remove the CDN availability dependency, but is deferred until the project adopts a frontend build/vendor workflow.
 * **Architecture:**
   * Procedural circular arena bounded by 16 Doric Greek peristyle columns.
   * Deterministic tick-based game loop handling:

@@ -168,3 +168,8 @@ Continuous Integration is enforced on every commit and pull request via 4 parall
    - Static frontend check preventing unescaped `innerHTML` interpolations.
 3. **Docker Image & Manifest Checks:** Multi-stage Alpine builds, enforced uncompressed image size budgets (API 20 MiB, game 25 MiB), `docker inspect` verification of non-root user `10001`, and YAML schema validation.
 4. **Browser Gameplay Smoke Tests:** Playwright loads the game, enters the arena, then pauses and resumes the run in Chromium.
+
+
+### Optional read-only load probe
+
+With the application running, execute `node scripts/load-test.mjs`. Set `LOAD_TEST_URL`, `LOAD_TEST_REQUESTS`, and `LOAD_TEST_CONCURRENCY` to change the target, request count, and concurrency. The probe only reads the leaderboard and does not write scores.
