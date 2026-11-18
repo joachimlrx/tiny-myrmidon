@@ -2,7 +2,7 @@ pub mod handlers;
 pub mod models;
 
 use axum::{
-    extract::Request,
+    extract::{DefaultBodyLimit, Request},
     http::{
         header::{CACHE_CONTROL, CONTENT_TYPE, X_CONTENT_TYPE_OPTIONS, X_FRAME_OPTIONS},
         HeaderValue, Method,
@@ -197,6 +197,7 @@ pub fn create_app(state: AppState) -> Router {
             "/api/scores",
             get(handlers::get_scores).post(handlers::add_score),
         )
+        .layer(DefaultBodyLimit::max(4096))
         .layer(middleware::from_fn(security_headers))
         .layer(build_cors_layer())
         .layer(TraceLayer::new_for_http())

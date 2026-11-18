@@ -111,12 +111,17 @@ pub async fn add_score(
         ));
     }
 
-    let Json(payload) = payload.map_err(|_| {
-        ApiError::new(
+    let Json(payload) = payload.map_err(|rejection| match rejection {
+        JsonRejection::BytesRejection(_) => ApiError::new(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "payload_too_large",
+            "Request body exceeds the 4 KB maximum limit.",
+        ),
+        _ => ApiError::new(
             StatusCode::BAD_REQUEST,
             "invalid_json",
             "Request body must be valid JSON containing player_name, score, and wave.",
-        )
+        ),
     })?;
     let valid_name = payload
         .validate()

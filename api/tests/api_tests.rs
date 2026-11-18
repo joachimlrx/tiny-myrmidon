@@ -470,3 +470,19 @@ async fn submitted_score_survives_an_api_state_restart() {
     drop(scores);
     std::fs::remove_file(path).unwrap();
 }
+
+#[tokio::test]
+async fn oversized_payload_returns_payload_too_large() {
+    let app = create_app(AppState::empty());
+    let oversized_body = "x".repeat(5000);
+
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/scores")
+        .header("content-type", "application/json")
+        .body(Body::from(oversized_body))
+        .unwrap();
+
+    let res = app.oneshot(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::PAYLOAD_TOO_LARGE);
+}

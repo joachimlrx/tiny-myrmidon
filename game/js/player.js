@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { scene } from './scene.js';
 
 export const player = new THREE.Group();
@@ -445,13 +444,6 @@ player.userData = {
 player.scale.setScalar(1.1);
 scene.add(player);
 
-// Prefer the bundled, rigged GLTF asset; the handcrafted Three.js model above
-// remains visible as a resilient fallback if the asset cannot be loaded.
-const gltfLoader = new GLTFLoader();
-// The bundled GLTF is only a primitive placeholder, so keep the detailed
-// procedural black-knight visible instead of replacing it with that asset.
-window.__myrmidonModelLoaded = false;
-
 export const orbitalGroup = new THREE.Group();
 const orbitalMaterial = new THREE.MeshPhysicalMaterial({
   color: 0x8e1025,
@@ -554,7 +546,6 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
     capeAttribute.setZ(vertex, data.capeBasePositions[offset + 2] + wave * flutter);
   }
   capeAttribute.needsUpdate = true;
-  data.capeGeometry.computeVertexNormals();
   const crestSway = -0.08 + Math.sin(data.animationTime * 3.1) * 0.035
     - stride * 0.045 * data.moveBlend;
   data.crest.rotation.z = crestSway;
