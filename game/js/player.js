@@ -35,25 +35,25 @@ function makeClothTexture() {
 }
 
 const bronze = new THREE.MeshPhysicalMaterial({
-  color: 0x8d603e,
-  metalness: 0.72,
-  roughness: 0.42,
-  clearcoat: 0.2,
-  clearcoatRoughness: 0.5,
-  envMapIntensity: 0.68
+  color: 0x76513b,
+  metalness: 0.68,
+  roughness: 0.48,
+  clearcoat: 0.16,
+  clearcoatRoughness: 0.58,
+  envMapIntensity: 0.72
 });
 const gold = new THREE.MeshPhysicalMaterial({
-  color: 0xc8a16b,
-  metalness: 0.82,
-  roughness: 0.36,
-  clearcoat: 0.24,
-  clearcoatRoughness: 0.45,
-  envMapIntensity: 0.76,
-  emissive: 0x241304,
-  emissiveIntensity: 0.04
+  color: 0xb88b52,
+  metalness: 0.78,
+  roughness: 0.4,
+  clearcoat: 0.2,
+  clearcoatRoughness: 0.52,
+  envMapIntensity: 0.78,
+  emissive: 0x1b1006,
+  emissiveIntensity: 0.025
 });
 const red = new THREE.MeshStandardMaterial({
-  color: 0x782f39,
+  color: 0x642532,
   map: makeClothTexture(),
   roughness: 0.92,
   side: THREE.DoubleSide
@@ -64,9 +64,9 @@ const dark = new THREE.MeshStandardMaterial({
   roughness: 0.68
 });
 const skin = new THREE.MeshPhysicalMaterial({
-  color: 0xa9785d,
-  roughness: 0.82,
-  clearcoat: 0.025
+  color: 0xb98266,
+  roughness: 0.86,
+  clearcoat: 0.018
 });
 const black = new THREE.MeshStandardMaterial({ color: 0x11151c, roughness: 0.88 });
 
@@ -150,8 +150,6 @@ mesh(head, new THREE.BoxGeometry(0.075, 0.26, 0.085), gold, [0, -0.085, 0.255]);
 for (const side of [-1, 1]) {
   mesh(head, new THREE.BoxGeometry(0.13, 0.22, 0.13), bronze, [side * 0.245, -0.13, 0.06], [0, 0, side * -0.2]);
 }
-const eyeLine = mesh(head, new THREE.BoxGeometry(0.27, 0.018, 0.012), black, [0, -0.015, 0.248]);
-eyeLine.material = black;
 
 // Exposed human anatomy: a neck connecting the helmeted head to the cuirass,
 // with readable facial planes rather than a featureless skin-colored sphere.
@@ -182,8 +180,14 @@ mesh(head, new THREE.BoxGeometry(0.105, 0.014, 0.018), new THREE.MeshStandardMat
 const beard = mesh(head, new THREE.SphereGeometry(0.16, 18, 12), dark, [0, -0.205, 0.075]);
 beard.scale.set(0.82, 0.56, 0.9);
 mesh(head, new THREE.ConeGeometry(0.075, 0.13, 8), dark, [0, -0.31, 0.105], [Math.PI, 0, 0]);
-// A leather chin strap anchors the helmet to the face.
-mesh(head, new THREE.CapsuleGeometry(0.018, 0.27, 4, 8), dark, [0, -0.12, 0.18], [0, 0, Math.PI / 2]);
+// Two slim leather cheek straps anchor the helmet without crossing the mouth.
+for (const side of [-1, 1]) {
+  const strap = mesh(head, new THREE.CapsuleGeometry(0.012, 0.13, 4, 8), dark,
+    [side * 0.205, -0.17, 0.145], [0, 0, side * -0.24]);
+  strap.scale.z = 0.72;
+  mesh(head, new THREE.SphereGeometry(0.018, 10, 8), gold,
+    [side * 0.205, -0.105, 0.19]);
+}
 
 
 const crest = mesh(head, new THREE.CapsuleGeometry(0.075, 0.43, 6, 12), red, [0, 0.39, -0.04], [0, 0, -0.1]);
@@ -222,7 +226,8 @@ for (const side of [-1, 1]) {
   elbow.position.y = -0.27;
   shoulder.add(elbow);
   mesh(elbow, new THREE.CapsuleGeometry(0.09, 0.23, 5, 12), skin, [0, -0.11, 0.025]);
-  mesh(elbow, new THREE.CylinderGeometry(0.115, 0.105, 0.17, 16), gold, [0, -0.12, 0.045], [0, 0, Math.PI / 2]);
+  mesh(elbow, new THREE.CylinderGeometry(0.115, 0.105, 0.17, 16), bronze, [0, -0.12, 0.045], [0, 0, Math.PI / 2]);
+  mesh(elbow, new THREE.TorusGeometry(0.105, 0.012, 7, 18), gold, [0, -0.205, 0.045], [Math.PI / 2, 0, 0]);
   mesh(elbow, new THREE.SphereGeometry(0.085, 14, 10), skin, [0, -0.235, 0.04]);
 
   // Human hands: a palm, thumb and four articulated fingers at the weapon grip.
@@ -256,7 +261,7 @@ capeGeometry.computeVertexNormals();
 const cape = mesh(body, capeGeometry, red, [0, -0.14, -0.34]);
 cape.rotation.x = 0.04;
 for (const side of [-1, 1]) {
-  mesh(body, new THREE.BoxGeometry(0.025, 1.2, 0.025), gold, [side * 0.49, -0.18, -0.275]);
+  mesh(body, new THREE.BoxGeometry(0.018, 1.16, 0.018), gold, [side * 0.49, -0.18, -0.275]);
 }
 
 // Shield: bronze boss, raised rim, radial boss details and a clean silhouette.
