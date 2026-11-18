@@ -528,6 +528,15 @@ export function updateEnemies(dt, state, scene, player) {
       );
     }
 
+    pushOutOfObstacles(enemy.position, data.colliderRadius * 0.82);
+    toPlayer.subVectors(player.position, enemy.position).setY(0);
+    distance = Math.hypot(toPlayer.x, toPlayer.z);
+    if (distance > 1e-4) {
+      toPlayer.normalize();
+    } else {
+      toPlayer.set(Math.sin(enemy.rotation.y), 0, Math.cos(enemy.rotation.y));
+    }
+
     data.animationTime += dt;
     data.phase += dt * (3.2 + enemy.speed * 2.35);
     data.moveBlend = THREE.MathUtils.damp(

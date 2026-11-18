@@ -111,18 +111,20 @@ function updatePlayerMovement(deltaTime) {
   const inputLength = direction.length();
 
   player.position.y = 0;
-  if (inputLength <= 0.08) return false;
+  const isMoving = inputLength > 0.08;
 
-  direction.multiplyScalar(1 / inputLength);
-  player.position.x += direction.x * state.speed * deltaTime;
-  player.position.z += direction.y * state.speed * deltaTime;
+  if (isMoving) {
+    direction.multiplyScalar(1 / inputLength);
+    player.position.x += direction.x * state.speed * deltaTime;
+    player.position.z += direction.y * state.speed * deltaTime;
 
-  const targetYaw = Math.atan2(direction.x, direction.y);
-  const yawDelta = THREE.MathUtils.euclideanModulo(
-    targetYaw - player.rotation.y + Math.PI,
-    Math.PI * 2
-  ) - Math.PI;
-  player.rotation.y += yawDelta * (1 - Math.exp(-14 * deltaTime));
+    const targetYaw = Math.atan2(direction.x, direction.y);
+    const yawDelta = THREE.MathUtils.euclideanModulo(
+      targetYaw - player.rotation.y + Math.PI,
+      Math.PI * 2
+    ) - Math.PI;
+    player.rotation.y += yawDelta * (1 - Math.exp(-14 * deltaTime));
+  }
 
   const distanceFromCenter = Math.hypot(player.position.x, player.position.z);
   if (distanceFromCenter > MAX_PLAYER_RADIUS) {
@@ -145,7 +147,7 @@ function updatePlayerMovement(deltaTime) {
     player.position.z += normalZ * penetration;
   }
 
-  return true;
+  return isMoving;
 }
 
 /** Keep the camera focused on the hero while allowing mouse orbit and zoom. */

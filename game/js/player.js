@@ -406,6 +406,13 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
     spearRig.rotation.set(0, 0, 0);
   }
 
+  data.hitTimer = Math.max(0, data.hitTimer - dt);
+  const hitWeight = THREE.MathUtils.clamp(data.hitTimer / 0.3, 0, 1);
+  data.body.position.x = Math.sin(data.animationTime * 37) * 0.07 * hitWeight;
+  data.body.rotation.z += hitWeight * 0.15;
+  data.body.rotation.x -= hitWeight * 0.1;
+  data.head.rotation.z += hitWeight * 0.1;
+
   player.updateMatrixWorld(true);
   for (const leg of data.legs) {
     leg.foot.getWorldPosition(footWorldPosition);
@@ -414,12 +421,6 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
     }
   }
 
-  data.hitTimer = Math.max(0, data.hitTimer - dt);
-  const hitWeight = THREE.MathUtils.clamp(data.hitTimer / 0.3, 0, 1);
-  data.body.position.x = Math.sin(data.animationTime * 37) * 0.07 * hitWeight;
-  data.body.rotation.z += hitWeight * 0.15;
-  data.body.rotation.x -= hitWeight * 0.1;
-  data.head.rotation.z += hitWeight * 0.1;
   data.shadow.material.opacity = 0.42 + idleWeight * 0.025
     + Math.abs(stride) * data.moveBlend * 0.025;
 
