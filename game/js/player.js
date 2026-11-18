@@ -150,8 +150,41 @@ mesh(head, new THREE.BoxGeometry(0.075, 0.26, 0.085), gold, [0, -0.085, 0.255]);
 for (const side of [-1, 1]) {
   mesh(head, new THREE.BoxGeometry(0.13, 0.22, 0.13), bronze, [side * 0.245, -0.13, 0.06], [0, 0, side * -0.2]);
 }
-const eyeLine = mesh(head, new THREE.BoxGeometry(0.27, 0.035, 0.025), black, [0, -0.015, 0.248]);
+const eyeLine = mesh(head, new THREE.BoxGeometry(0.27, 0.018, 0.012), black, [0, -0.015, 0.248]);
 eyeLine.material = black;
+
+// Exposed human anatomy: a neck connecting the helmeted head to the cuirass,
+// with readable facial planes rather than a featureless skin-colored sphere.
+mesh(body, new THREE.CapsuleGeometry(0.105, 0.19, 7, 14), skin, [0, 0.49, 0.015]);
+const faceDetails = { eyes: [], hands: [] };
+for (const side of [-1, 1]) {
+  mesh(head, new THREE.SphereGeometry(0.075, 16, 12), skin, [side * 0.218, -0.045, 0.015]);
+  mesh(head, new THREE.SphereGeometry(0.032, 12, 10), red, [side * 0.226, -0.045, 0.043]);
+  const eyeSocket = mesh(head, new THREE.SphereGeometry(0.058, 18, 12), dark, [side * 0.087, 0.005, 0.235]);
+  eyeSocket.scale.set(1.18, 0.78, 0.42);
+  const eye = mesh(head, new THREE.SphereGeometry(0.039, 18, 12), new THREE.MeshStandardMaterial({ color: 0xe6d9c2, roughness: 0.48 }), [side * 0.087, 0.005, 0.255]);
+  eye.scale.set(1.05, 0.78, 0.5);
+  mesh(head, new THREE.SphereGeometry(0.019, 14, 10), black, [side * 0.087, 0.002, 0.275]);
+  mesh(head, new THREE.SphereGeometry(0.008, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }), [side * 0.079, 0.014, 0.285]);
+  const brow = mesh(head, new THREE.CapsuleGeometry(0.025, 0.085, 3, 8), dark, [side * 0.087, 0.073, 0.245]);
+  brow.rotation.z = side * -0.12;
+  faceDetails.eyes.push(eye);
+}
+// Nose bridge, cheek planes, lips and a close-cropped beard beneath the jaw.
+mesh(head, new THREE.CapsuleGeometry(0.027, 0.075, 4, 10), skin, [0, -0.065, 0.255]);
+const noseTip = mesh(head, new THREE.SphereGeometry(0.043, 14, 10), skin, [0, -0.105, 0.272]);
+noseTip.scale.set(1, 0.78, 0.85);
+for (const side of [-1, 1]) {
+  const cheek = mesh(head, new THREE.SphereGeometry(0.075, 14, 10), skin, [side * 0.145, -0.085, 0.19]);
+  cheek.scale.set(1, 0.72, 0.46);
+}
+mesh(head, new THREE.BoxGeometry(0.105, 0.014, 0.018), new THREE.MeshStandardMaterial({ color: 0x673b35, roughness: 0.9 }), [0, -0.172, 0.249]);
+const beard = mesh(head, new THREE.SphereGeometry(0.16, 18, 12), dark, [0, -0.205, 0.075]);
+beard.scale.set(0.82, 0.56, 0.9);
+mesh(head, new THREE.ConeGeometry(0.075, 0.13, 8), dark, [0, -0.31, 0.105], [Math.PI, 0, 0]);
+// A leather chin strap anchors the helmet to the face.
+mesh(head, new THREE.CapsuleGeometry(0.018, 0.27, 4, 8), dark, [0, -0.12, 0.18], [0, 0, Math.PI / 2]);
+
 
 const crest = mesh(head, new THREE.CapsuleGeometry(0.075, 0.43, 6, 12), red, [0, 0.39, -0.04], [0, 0, -0.1]);
 crest.scale.set(0.9, 1.06, 1.55);
@@ -191,6 +224,23 @@ for (const side of [-1, 1]) {
   mesh(elbow, new THREE.CapsuleGeometry(0.09, 0.23, 5, 12), skin, [0, -0.11, 0.025]);
   mesh(elbow, new THREE.CylinderGeometry(0.115, 0.105, 0.17, 16), gold, [0, -0.12, 0.045], [0, 0, Math.PI / 2]);
   mesh(elbow, new THREE.SphereGeometry(0.085, 14, 10), skin, [0, -0.235, 0.04]);
+
+  // Human hands: a palm, thumb and four articulated fingers at the weapon grip.
+  const handRig = new THREE.Group();
+  handRig.position.set(0, -0.31, 0.035);
+  elbow.add(handRig);
+  mesh(handRig, new THREE.SphereGeometry(0.092, 16, 12), skin, [0, -0.015, 0.015]).scale.set(0.82, 1.12, 0.62);
+  for (let finger = 0; finger < 4; finger += 1) {
+    const spread = (finger - 1.5) * 0.041;
+    const length = 0.105 + (1 - Math.abs(finger - 1.5) / 2) * 0.025;
+    const digit = mesh(handRig, new THREE.CapsuleGeometry(0.022, length, 4, 8), skin, [spread, -0.105 - (finger === 0 || finger === 3 ? 0.008 : 0), 0.025]);
+    digit.rotation.z = (finger - 1.5) * 0.075;
+    mesh(handRig, new THREE.SphereGeometry(0.022, 10, 8), skin, [spread, -0.105 - length * 0.72, 0.025]);
+  }
+  const thumb = mesh(handRig, new THREE.CapsuleGeometry(0.025, 0.09, 4, 8), skin, [side * 0.09, -0.035, 0.04]);
+  thumb.rotation.z = side * -0.8;
+  faceDetails.hands.push(handRig);
+
   arms.push({ shoulder, elbow, side });
 }
 
@@ -258,6 +308,7 @@ player.userData = {
   head,
   legs,
   arms,
+  faceDetails,
   cape,
   shieldRig,
   shadow,
@@ -290,9 +341,10 @@ gltfLoader.load(
       }
     });
 
-    for (const child of player.children) {
-      if (child !== shadow) child.visible = false;
-    }
+    // Keep the richer procedural human character visible. The bundled GLTF
+    // remains loaded as the animation/asset reference and as a verified fallback
+    // asset, but its blockout geometry must not cover the anatomical character.
+    model.visible = false;
     player.add(model);
     window.__myrmidonModelLoaded = true;
 
@@ -430,6 +482,12 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
   data.head.rotation.x = -0.025 + breath * 0.016;
   data.head.rotation.y = stride * 0.03 * data.moveBlend;
   data.head.rotation.z = stride * 0.016 * data.moveBlend;
+  // Subtle eye focus and natural blink keep the face alive without a heavy rig.
+  const blink = Math.pow(Math.max(0, Math.sin(data.animationTime * 0.73 + 1.4)), 48);
+  for (const eye of data.faceDetails.eyes) eye.scale.y = 0.78 * (1 - blink * 0.92);
+  for (const hand of data.faceDetails.hands) {
+    hand.rotation.x = -0.04 + Math.sin(data.animationTime * 2.4 + hand.position.x) * 0.025;
+  }
 
   data.cape.rotation.x = 0.04 + data.moveBlend * 0.13
     + Math.sin(data.animationTime * 4.1) * 0.025;
