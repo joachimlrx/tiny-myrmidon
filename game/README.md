@@ -1,88 +1,100 @@
-# Comprendre le frontend du jeu
+# Understanding the Game Frontend
 
-Ce dossier contient le jeu 3D exécuté dans le navigateur. Il est écrit en JavaScript avec Three.js.
+This folder contains the browser-based 3D game. It is built with JavaScript and Three.js.
 
-L'objectif est simple : **un fichier doit avoir une responsabilité facile à expliquer**.
+The main goal is simple: **each file should have one responsibility that is easy to explain**.
 
-## Démarrage
+## Getting Started
 
-Le navigateur ouvre `index.html`. Cette page charge les feuilles de style, configure l'import de Three.js, puis démarre `js/loop.js`.
+The browser loads `index.html`. This page loads the stylesheets, configures the Three.js import map, and starts `js/loop.js`.
 
-Le jeu ne nécessite pas de compilation JavaScript séparée.
+The game does not require a separate JavaScript build step.
 
-## Organisation des fichiers
+## File Structure
 
-| Fichier | Responsabilité |
+| File | Responsibility |
 | --- | --- |
-| `index.html` | Structure de la page : écran d'accueil, HUD, menus et import de Three.js |
-| `styles/base.css` | Règles communes de la page et styles de boutons |
-| `styles/hud.css` | Barres de vie et d'expérience, niveau, pause et aide clavier |
-| `styles/modals.css` | Menus pause, améliorations et fin de partie |
-| `styles/joystick.css` | Joystick tactile |
-| `js/config.js` | Réglages fixes : distances, vitesses et limites |
-| `js/state.js` | Valeurs qui changent pendant une partie |
-| `js/input.js` | Clavier, saisie du nom, joystick tactile et boutons pause / redémarrage |
-| `js/camera-controls.js` | Rotation de la caméra à la souris et zoom à la molette |
-| `js/loop.js` | Coordination des systèmes à chaque image |
-| `js/scene.js` | Scène Three.js, lumière, caméra, décor et rendu |
-| `js/player.js` | Modèle du héros et ses animations |
-| `js/enemies.js` | Création, déplacement, dégâts et élimination des ennemis |
-| `js/weapons.js` | Lancers de lance et attaques au contact |
-| `js/gems.js` | Orbes d'expérience, attraction et progression |
-| `js/upgrades.js` | Choix et application des bénédictions |
-| `js/hud.js` | Mise à jour des informations affichées |
-| `js/leaderboard.js` | Lecture et envoi des scores à l'API |
+| `index.html` | Page structure: title screen, HUD, menus, and Three.js import map |
+| `styles/base.css` | Shared page styles and button defaults |
+| `styles/hud.css` | Health and XP bars, level display, pause button, and keyboard help |
+| `styles/modals.css` | Pause, upgrade, and game-over dialogs |
+| `styles/joystick.css` | Touch joystick |
+| `styles/menu.css` | Main title screen |
+| `js/config.js` | Fixed tuning values such as distances, speeds, and limits |
+| `js/state.js` | Values that can change during a game session |
+| `js/input.js` | Keyboard input, score-name entry, touch joystick, and pause/restart buttons |
+| `js/camera-controls.js` | Mouse camera orbit, zoom, and camera-relative movement directions |
+| `js/loop.js` | Coordinates all systems on every animation frame |
+| `js/scene.js` | Three.js scene, lighting, camera, environment, and rendering |
+| `js/player.js` | Player model and character animations |
+| `js/enemies.js` | Enemy creation, movement, damage, and defeat handling |
+| `js/weapons.js` | Spear throws and close-range spear thrusts |
+| `js/gems.js` | Experience orbs, attraction, and level progression |
+| `js/upgrades.js` | Upgrade choices and their effects |
+| `js/hud.js` | Updates the information displayed on screen |
+| `js/leaderboard.js` | Loads scores and submits new scores to the API |
 
-## Déroulement d'une image
+## What Happens During a Frame?
 
-La fonction `renderFrame()` de `loop.js` est appelée par `requestAnimationFrame()`.
+The `renderFrame()` function in `loop.js` is called by `requestAnimationFrame()`.
 
-Quand la partie n'est pas en pause, `updateGame()` exécute ces étapes dans cet ordre :
+When the game is active, `updateGame()` performs these steps in order:
 
-1. Lire les touches ou le joystick et déplacer le héros.
-2. Mettre à jour l'animation du héros et la caméra.
-3. Faire apparaître les ennemis lorsque le délai de réapparition est écoulé.
-4. Déclencher les attaques et déplacer les lances déjà lancées.
-5. Mettre à jour le bouclier orbital, les ennemis et les orbes d'expérience.
-6. Mettre à jour les effets visuels, le décor animé et le HUD.
-7. Annoncer une nouvelle vague si le niveau a changé.
+1. Read keyboard or joystick input and move the hero.
+2. Update the hero animation.
+3. Spawn enemies when the spawn timer expires.
+4. Trigger attacks and update spears that are already in flight.
+5. Update the Orbital Aegis, enemies, and experience orbs.
+6. Update the HUD and gameplay effects.
+7. Announce a new wave when the level changes.
 
-La pause arrête les mises à jour du jeu, mais continue d'afficher la dernière image rendue.
+While the game is paused or over, gameplay updates stop but the scene continues to render. Camera controls remain available.
 
-## Où modifier le comportement
+## Where to Make Changes
 
-- Pour modifier une distance, une vitesse ou une limite, commencer par `config.js`.
-- Pour modifier les caractéristiques initiales d'une partie, modifier `state.js`.
-- Pour changer les déplacements ou les touches, modifier `input.js` et la lecture des déplacements dans `loop.js`.
-- Pour changer les attaques, modifier `weapons.js`.
-- Pour changer le modèle ou les mouvements du héros, modifier `player.js`.
-- Pour changer l'arène, la lumière ou le rendu, modifier `scene.js`.
-- Pour modifier les améliorations ou la progression, modifier `upgrades.js` et `gems.js`.
+- To adjust a distance, speed, or limit, start with `config.js`.
+- To change the initial values for a new game, edit `state.js`.
+- To change movement or keyboard bindings, edit `input.js` and the movement functions in `loop.js`.
+- To change spear attacks, edit `weapons.js`.
+- To change the hero model or its animations, edit `player.js`.
+- To change the arena, lighting, or rendering, edit `scene.js`.
+- To change the mouse camera behaviour, edit `camera-controls.js`.
+- To change upgrades or progression, edit `upgrades.js` and `gems.js`.
+- To change the title screen, edit `index.html` and `styles/menu.css`.
+- To change score submission or leaderboard rendering, edit `leaderboard.js`.
 
-## Quelques règles de maintenance
+## Camera Controls
 
-- Utiliser des noms qui décrivent l'intention, par exemple `updateEnemySpawning()` plutôt que des noms d'une seule lettre.
-- Garder une fonction courte et centrée sur une seule étape du jeu.
-- Garder les constantes d'équilibrage dans `config.js`.
-- Ne pas manipuler le DOM depuis les systèmes de combat : les mises à jour d'interface passent par `hud.js`.
-- Après une modification JavaScript, vérifier la syntaxe avec la CI GitHub Actions.
+- Hold the left mouse button and drag to rotate the camera around the hero.
+- Drag vertically to change the camera pitch.
+- Use the mouse wheel to zoom in or out.
+- The camera can be controlled on the title screen and while the game is paused.
 
+## Camera-Relative Movement
 
-## Écran d'accueil et caméra
+Keyboard and joystick input are first read as directions on the screen.
 
-- L'écran titre est dans `index.html` et son apparence dans `styles/menu.css`.
-- La partie ne démarre qu'après le bouton `Start your legend` ou la touche Entrée.
-- `camera-controls.js` gère la caméra indépendamment du gameplay : glisser avec le bouton gauche de la souris fait tourner la caméra, et la molette règle la distance.
-- La caméra reste contrôlable pendant les menus et lorsque la partie est en pause.
+`camera-controls.js` converts that direction into world space using the camera's horizontal rotation. This keeps movement aligned with the current view:
 
-## Enregistrement du score
+- `Z` moves towards the top of the screen.
+- `S` moves towards the bottom of the screen.
+- `Q` moves towards the left of the screen.
+- `D` moves towards the right of the screen.
 
-Le formulaire de fin de partie utilise un véritable événement `submit`. On peut écrire avec toutes les touches du clavier, y compris Z, Q, S et D. La touche Entrée envoie le formulaire. Quand le curseur est dans un champ de saisie, les raccourcis du jeu ne capturent pas les caractères.
+The same conversion is applied to joystick input. WASD and arrow-key alternatives are also supported.
 
+## Score Submission
 
-## Déplacement relatif à la caméra
+The game-over name field uses a standard form submit event.
 
-Les entrées clavier et joystick sont d'abord exprimées dans le repère de l'écran.
-`camera-controls.js` les convertit ensuite en direction du monde à partir de l'angle horizontal de la caméra. Ainsi, Z avance toujours vers le haut de l'écran, Q et D suivent les côtés visibles, même après une rotation de la vue.
+- All normal keyboard characters can be entered, including Z, Q, S, and D.
+- Press Enter or click the submit button to save the score.
+- While a text field is focused, the game does not intercept typing shortcuts.
 
-Le glisser vertical suit le mouvement naturel de la souris et la molette utilise une sensibilité plus rapide.
+## Maintenance Guidelines
+
+- Prefer names that describe intent, such as `updateEnemySpawning()`, over single-letter names.
+- Keep each function focused on one task.
+- Keep gameplay tuning values in `config.js`.
+- Avoid manipulating the DOM from combat systems. Route interface updates through `hud.js`.
+- After changing JavaScript, check syntax and automated checks with GitHub Actions.
