@@ -97,36 +97,89 @@ const body = new THREE.Group();
 body.position.y = 0.88;
 player.add(body);
 
-// Layered linen tunic and sculpted bronze cuirass.
-const tunic = mesh(body, new THREE.CapsuleGeometry(0.285, 0.52, 8, 20), red, [0, 0.015, -0.015]);
-tunic.scale.set(1.02, 1.08, 0.92);
-const breastplate = mesh(
-  body,
-  new THREE.SphereGeometry(0.41, 40, 28),
-  bronze,
-  [0, 0.13, 0.075]
-);
-// Broad upper chest, tapered waist: a more anatomical cuirass silhouette.
-breastplate.scale.set(1.08, 1.18, 0.66);
+// Tailored linen underlayer and a continuous, anatomically shaped cuirass.
+const tunic = mesh(body, new THREE.CapsuleGeometry(0.285, 0.58, 8, 24), red, [0, 0.015, -0.025]);
+tunic.scale.set(1.0, 1.08, 0.86);
 
-for (const side of [-1, 1]) {
-  const pectoral = mesh(
-    body,
-    new THREE.SphereGeometry(0.225, 28, 20),
-    bronze,
-    [side * 0.155, 0.205, 0.255]
-  );
-  pectoral.scale.set(1.12, 0.72, 0.29);
+// Build the cuirass as one shaped surface rather than stacked primitive blobs.
+// Its chest is broad, the ribs taper into a narrow waist, and the lower edge
+// flares just enough to sit naturally over the belt.
+function createCuirassGeometry() {
+  const rings = [
+    [-0.47, 0.255, 0.17], [-0.36, 0.265, 0.185],
+    [-0.20, 0.285, 0.19], [-0.04, 0.315, 0.205],
+    [0.12, 0.355, 0.22], [0.28, 0.385, 0.205],
+    [0.40, 0.345, 0.17], [0.47, 0.285, 0.145]
+  ];
+  const segments = 48;
+  const positions = [];
+  const uvs = [];
+  const indices = [];
+  rings.forEach(([y, width, depth], row) => {
+    for (let segment = 0; segment <= segments; segment += 1) {
+      const angle = (segment / segments) * Math.PI * 2;
+      const front = Math.max(0, Math.sin(angle));
+      const chestBulge = Math.exp(-Math.pow((y - 0.2) / 0.19, 2)) * Math.pow(front, 3);
+      const x = Math.cos(angle) * width;
+      const z = Math.sin(angle) * (depth + chestBulge * 0.025);
+      positions.push(x, y, z + 0.015);
+      uvs.push(segment / segments, row / (rings.length - 1));
+      if (row < rings.length - 1 && segment < segments) {
+        const a = row * (segments + 1) + segment;
+        const b = a + segments + 1;
+        indices.push(a, b, a + 1, b, b + 1, a + 1);
+      }
+    }
+  });
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
 }
+const cuirass = mesh(body, createCuirassGeometry(), bronze, [0, 0.02, 0]);
+cuirass.material = bronze;
 
-for (let row = 0; row < 3; row += 1) {
-  const plate = mesh(
-    body,
-    new THREE.SphereGeometry(0.3, 24, 16),
-    bronze,
-    [0, -0.095 - row * 0.135, 0.11]
-  );
-  plate.scale.set(0.82, 0.22, 0.58);
+// Subtle raised pectoral contours are part of the cuirass silhouette, not
+// separate spheres; a narrow central ridge catches light like forged metal.
+const sternumRidge = mesh(body, new THREE.BoxGeometry(0.018, 0.49, 0.018), gold, [0, 0.13, 0.232]);
+sternumRidge.scale.set(0.72, 1, 0.55);
+
+// Five overlapping curved tassets follow the hips and leave the thighs free.
+function createTassetGeometry(width, height) {
+  const positions = [];
+  const indices = [];
+  const across = 8;
+  const down = 5;
+  for (let row = 0; row <= down; row += 1) {
+    const v = row / down;
+    for (let col = 0; col <= across; col += 1) {
+      const u = col / across;
+      const x = (u - 0.5) * width;
+      const y = (0.5 - v) * height;
+      const curve = 0.035 * (1 - Math.pow((u - 0.5) * 2, 2));
+      positions.push(x, y, curve + 0.018 * Math.sin(v * Math.PI));
+      if (row < down && col < across) {
+        const a = row * (across + 1) + col;
+        const b = a + across + 1;
+        indices.push(a, a + 1, b, a + 1, b + 1, b);
+      }
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+for (let index = -2; index <= 2; index += 1) {
+  const plate = mesh(body, createTassetGeometry(0.145, 0.32), bronze,
+    [index * 0.137, -0.59, 0.145 - Math.abs(index) * 0.012]);
+  plate.rotation.z = -index * 0.055;
+  const edge = mesh(plate, new THREE.BoxGeometry(0.105, 0.012, 0.012), gold,
+    [0, -0.145, 0.025]);
+  edge.scale.x = 1.0;
 }
 
 mesh(body, new THREE.TorusGeometry(0.285, 0.024, 10, 36), gold, [0, -0.405, 0]);
@@ -557,8 +610,17 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
     rightArm.shoulder.rotation.x -= anticipation * 0.3 + strike * 0.7;
     rightArm.elbow.rotation.x -= strike * 0.35;
     data.body.position.z = -0.025 * anticipation + 0.11 * strike;
+    data.body.position.y -= anticipation * 0.025 + strike * 0.045;
     data.body.rotation.x -= strike * 0.1;
+    data.body.rotation.y += -anticipation * 0.035 + strike * 0.055;
     data.body.rotation.z += anticipation * 0.07 - strike * 0.035;
+    // A committed thrust drives from the rear leg and bends the lead knee.
+    for (const leg of data.legs) {
+      const lead = leg.side > 0 ? 1 : -1;
+      leg.hip.rotation.x += strike * (lead > 0 ? -0.3 : 0.16);
+      leg.knee.rotation.x += strike * (lead > 0 ? 0.48 : 0.06);
+      leg.foot.rotation.x -= strike * (lead > 0 ? 0.12 : 0.04);
+    }
     data.shieldRig.rotation.x -= strike * 0.12 * oneHand;
   } else if (attacking) {
     spearRig.rotation.x = -1.05 * anticipation + 0.4 * strike + 0.1 * recovery;
@@ -567,8 +629,15 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
     rightArm.elbow.rotation.x -= anticipation * 0.18 + strike * 0.2;
     leftArm.shoulder.rotation.x -= anticipation * 0.16 * twoHands;
     data.body.position.z = -0.045 * anticipation + 0.05 * strike;
+    data.body.position.y -= anticipation * 0.035 + strike * 0.02;
     data.body.rotation.x -= anticipation * 0.075 + strike * 0.04;
+    data.body.rotation.y += anticipation * 0.045 - strike * 0.025;
     data.body.rotation.z += anticipation * 0.1 - strike * 0.045;
+    for (const leg of data.legs) {
+      leg.hip.rotation.x += anticipation * (leg.side > 0 ? -0.18 : 0.22)
+        + strike * (leg.side > 0 ? 0.12 : -0.08);
+      leg.knee.rotation.x += anticipation * (leg.side > 0 ? 0.22 : 0.04);
+    }
     data.shieldRig.rotation.x -= anticipation * 0.1 * oneHand;
   } else {
     spearRig.rotation.set(0, 0, 0);
