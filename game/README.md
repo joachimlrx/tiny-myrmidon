@@ -78,3 +78,11 @@ La pause arrête les mises à jour du jeu, mais continue d'afficher la dernière
 ## Enregistrement du score
 
 Le formulaire de fin de partie utilise un véritable événement `submit`. On peut écrire avec toutes les touches du clavier, y compris Z, Q, S et D. La touche Entrée envoie le formulaire. Quand le curseur est dans un champ de saisie, les raccourcis du jeu ne capturent pas les caractères.
+
+
+## Déplacement relatif à la caméra
+
+Les entrées clavier et joystick sont d'abord exprimées dans le repère de l'écran.
+`camera-controls.js` les convertit ensuite en direction du monde à partir de l'angle horizontal de la caméra. Ainsi, Z avance toujours vers le haut de l'écran, Q et D suivent les côtés visibles, même après une rotation de la vue.
+
+Le glisser vertical suit le mouvement naturel de la souris et la molette utilise une sensibilité plus rapide.

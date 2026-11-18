@@ -65,7 +65,7 @@ export function createCameraControls(camera) {
 
     yaw -= deltaX * MOUSE_ROTATION_SPEED;
     pitch = THREE.MathUtils.clamp(
-      pitch - deltaY * MOUSE_PITCH_SPEED,
+      pitch + deltaY * MOUSE_PITCH_SPEED,
       MIN_CAMERA_PITCH,
       MAX_CAMERA_PITCH,
     );
@@ -80,7 +80,7 @@ export function createCameraControls(camera) {
     if (isInteractiveTarget(event.target)) return;
 
     distance = THREE.MathUtils.clamp(
-      distance + event.deltaY * 0.01,
+      distance + event.deltaY * 0.035,
       MIN_CAMERA_DISTANCE,
       MAX_CAMERA_DISTANCE,
     );
@@ -113,5 +113,29 @@ export function createCameraControls(camera) {
   window.addEventListener('blur', stopDragging);
   window.addEventListener('wheel', handleWheel, { passive: false });
 
-  return { update };
+  /**
+   * Convert a direction expressed in screen space into world space.
+   *
+   * The local Y axis points down the screen, so a negative value means
+   * "forward". Rotating this vector by the camera yaw keeps ZQSD aligned
+   * with what the player sees after orbiting the camera.
+   */
+  function toWorldDirection(direction) {
+    const cosine = Math.cos(yaw);
+    const sine = Math.sin(yaw);
+    const screenX = direction.x;
+    const screenY = direction.y;
+
+    direction.set(
+      screenX * cosine + screenY * sine,
+      -screenX * sine + screenY * cosine,
+    );
+
+    return direction;
+  }
+
+  return {
+    update,
+    toWorldDirection,
+  };
 }

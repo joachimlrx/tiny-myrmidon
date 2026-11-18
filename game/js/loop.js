@@ -107,7 +107,7 @@ function readMovementInput() {
 
 /** Move the hero and keep it inside the arena. */
 function updatePlayerMovement(deltaTime) {
-  const direction = readMovementInput();
+  const direction = cameraControls.toWorldDirection(readMovementInput());
   const inputLength = direction.length();
 
   if (inputLength <= 0.08) return false;
