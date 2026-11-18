@@ -318,7 +318,7 @@ async fn leaderboard_truncation_limits_to_max_entries() {
 
 #[tokio::test]
 async fn rate_limit_is_isolated_per_client_ip_and_security_headers_are_present() {
-    let app = create_app(AppState::empty());
+    let app = create_app(AppState::empty().with_trusted_proxy_hops(1));
 
     for i in 0..MAX_SUBMISSIONS_PER_WINDOW {
         let payload = json!({
@@ -356,4 +356,41 @@ async fn rate_limit_is_isolated_per_client_ip_and_security_headers_are_present()
         .unwrap();
     let legit_res = app.oneshot(legit_req).await.unwrap();
     assert_eq!(legit_res.status(), StatusCode::CREATED);
+}
+
+#[tokio::test]
+async fn submitted_score_survives_an_api_state_restart() {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let path = std::env::temp_dir().join(format!("tiny-myrmidon-api-test-{nonce}.json"));
+    let state = AppState::from_file(&path, 0).unwrap();
+    let app = create_app(state);
+
+    let payload = json!({
+        "player_name": "PersistentHero",
+        "score": 1200,
+        "wave": 3
+    });
+    let request = Request::builder()
+        .method("POST")
+        .uri("/api/scores")
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(&payload).unwrap()))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    let restarted_state = AppState::from_file(&path, 0).unwrap();
+    let scores = restarted_state.scores.read().await;
+    assert_eq!(scores.len(), 1);
+    assert_eq!(scores[0].player_name, "PersistentHero");
+    assert_eq!(scores[0].score, 1200);
+
+    drop(scores);
+    std::fs::remove_file(path).unwrap();
 }

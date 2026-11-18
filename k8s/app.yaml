@@ -85,12 +85,19 @@ spec:
       labels:
         app: tiny-myrmidon-api
     spec:
+      securityContext:
+        fsGroup: 10001
       containers:
         - name: api
           image: tiny-myrmidon-api:v1
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
+          env:
+            - name: TRUSTED_PROXY_HOPS
+              value: "1"
+            - name: SCORE_STORE_PATH
+              value: /data/scores.json
           securityContext:
             runAsNonRoot: true
             runAsUser: 10001
@@ -99,6 +106,9 @@ spec:
             capabilities:
               drop:
                 - ALL
+          volumeMounts:
+            - name: leaderboard-data
+              mountPath: /data
           resources:
             requests:
               cpu: "25m"
@@ -118,6 +128,10 @@ spec:
               port: 3000
             initialDelaySeconds: 2
             periodSeconds: 5
+      volumes:
+        - name: leaderboard-data
+          persistentVolumeClaim:
+            claimName: tiny-myrmidon-leaderboard
 ---
 apiVersion: v1
 kind: Service
@@ -165,7 +179,14 @@ spec:
     - Ingress
     - Egress
   ingress:
-    - ports:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
         - protocol: TCP
           port: 3000
   egress: []
@@ -182,7 +203,27 @@ spec:
     - Ingress
     - Egress
   ingress:
-    - ports:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
         - protocol: TCP
           port: 8080
   egress: []
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tiny-myrmidon-leaderboard
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 256Mi

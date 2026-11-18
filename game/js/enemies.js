@@ -62,6 +62,29 @@ function part(parent, geometry, material, position, rotation) {
   return object;
 }
 
+function disposeEnemyResources(enemy, scene) {
+  scene.remove(enemy);
+
+  const geometries = new Set();
+  const materials = new Set();
+
+  enemy.traverse((child) => {
+    if (!child.isMesh) return;
+    if (child.geometry) geometries.add(child.geometry);
+
+    const childMaterials = Array.isArray(child.material)
+      ? child.material
+      : [child.material];
+
+    childMaterials.forEach((material) => {
+      if (material) materials.add(material);
+    });
+  });
+
+  geometries.forEach((geometry) => geometry.dispose());
+  materials.forEach((material) => material.dispose());
+}
+
 function makeEnemy(type) {
   const profile = profiles[type];
   const isCyclops = type === 'cyclops';
@@ -398,7 +421,7 @@ export function applyEnemyDamage(enemy, damage, state, scene, spawnGem, directio
     spawnGem(scene, enemy.position, enemy.xpValue);
     state.kills += 1;
     state.score += enemy.scoreValue || 50;
-    scene.remove(enemy);
+    disposeEnemyResources(enemy, scene);
     const index = enemies.indexOf(enemy);
     if (index !== -1) enemies.splice(index, 1);
   }
@@ -422,6 +445,10 @@ export function updateEnemyEffects(dt, scene) {
     if (effect.life <= 0) {
       scene.remove(effect.object);
       effect.texture?.dispose();
+      const effectMaterials = Array.isArray(effect.object.material)
+        ? effect.object.material
+        : [effect.object.material];
+      effectMaterials.forEach((material) => material?.dispose());
       effect.material?.dispose();
       effect.object.geometry?.dispose();
       effects.splice(index, 1);

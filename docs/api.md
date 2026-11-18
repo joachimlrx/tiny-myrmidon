@@ -122,3 +122,21 @@ Returned if `player_name` is empty, contains only spaces, or exceeds 30 characte
 ```text
 HTTP/1.1 400 Bad Request
 ```
+
+
+## 4. Persistence and deployment
+
+When `SCORE_STORE_PATH` is configured, the API loads the leaderboard from a JSON file at startup and atomically replaces that file after each accepted score. The Kubernetes manifest mounts a `ReadWriteOnce` PVC at `/data` and sets the path to `/data/scores.json`.
+
+This provides persistence across API pod restarts for the single-replica deployment. It is not a multi-replica database: keep the API at one replica while using the file store. For horizontal scaling or concurrent writers across pods, migrate the store to PostgreSQL.
+
+The Kubernetes deployment sets `TRUSTED_PROXY_HOPS=1`. The API only trusts the rightmost client address in `X-Forwarded-For` when this value is positive; the matching NetworkPolicies restrict pod ingress to the Traefik controller in `kube-system`. Outside that deployment, the default is `0`, which ignores forwarding headers and groups unidentifiable clients under one conservative rate-limit key.
+
+If the file is missing, the API starts with an empty leaderboard. If it contains invalid JSON, startup fails rather than silently discarding existing data. Back up the PVC before making storage changes.
+
+
+## 5. Score integrity and limits
+
+Score validation rejects malformed names, impossible wave values and scores above a configured plausibility bound. This is abuse filtering, not a server-authoritative anti-cheat system: the browser still reports the final score and wave, so a modified client can fabricate a plausible result.
+
+Do not use this anonymous endpoint for a prize-bearing or competitive leaderboard. That requires authenticated run sessions and server-authoritative gameplay validation (or replay verification) before a score can be trusted.
