@@ -130,6 +130,8 @@ When `SCORE_STORE_PATH` is configured, the API loads the leaderboard from a JSON
 
 This provides persistence across API pod restarts for the single-replica deployment. It is not a multi-replica database: keep the API at one replica while using the file store. For horizontal scaling or concurrent writers across pods, migrate the store to PostgreSQL.
 
+The Kubernetes deployment sets `TRUSTED_PROXY_HOPS=1`. The API only trusts the rightmost client address in `X-Forwarded-For` when this value is positive; the matching NetworkPolicies restrict pod ingress to the Traefik controller in `kube-system`. Outside that deployment, the default is `0`, which ignores forwarding headers and groups unidentifiable clients under one conservative rate-limit key.
+
 If the file is missing, the API starts with an empty leaderboard. If it contains invalid JSON, startup fails rather than silently discarding existing data. Back up the PVC before making storage changes.
 
 

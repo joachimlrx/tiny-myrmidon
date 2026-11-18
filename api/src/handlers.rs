@@ -89,7 +89,6 @@ pub async fn add_score(
     Ok((StatusCode::CREATED, Json(entry)))
 }
 
-
 #[cfg(test)]
 mod client_ip_tests {
     use super::*;

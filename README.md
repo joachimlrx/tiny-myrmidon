@@ -49,6 +49,7 @@ For complete technical specifications, see [docs/architecture.md](docs/architect
 - **k3d** (v5.x+)
 - **kubectl**
 - **Rust & Cargo** (1.80+)
+- **Node.js** (22+) for local frontend syntax checks
 - **Make**
 
 ### 1-Command Local Setup & Deployment
@@ -120,7 +121,7 @@ tiny-myrmidon/
 │   │   ├── main.rs           # Server entrypoint & graceful shutdown
 │   │   ├── lib.rs            # Router, CORS layer & sliding-window rate limiter
 │   │   ├── handlers.rs       # HTTP route handlers with structured tracing
-│   │   └── models.rs         # Score models & anti-cheat bounds validation
+│   │   └── models.rs         # Score models & score plausibility validation
 │   ├── tests/
 │   │   └── api_tests.rs      # In-memory HTTP integration & security tests
 │   ├── Cargo.toml            # Rust dependencies & release profile

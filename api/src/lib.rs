@@ -195,7 +195,6 @@ pub fn create_app(state: AppState) -> Router {
         .with_state(state)
 }
 
-
 #[cfg(test)]
 mod rate_limit_tests {
     use super::*;
@@ -240,7 +239,6 @@ mod rate_limit_tests {
         );
     }
 }
-
 
 #[cfg(test)]
 mod persistence_tests {

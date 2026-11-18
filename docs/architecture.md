@@ -89,3 +89,8 @@ graph TD
 The API can persist its sorted top-50 leaderboard to a JSON file through `SCORE_STORE_PATH`. Writes are serialized with the in-memory leaderboard lock, written to a temporary file and renamed into place. The Kubernetes deployment mounts a `ReadWriteOnce` local-path PVC at `/data`.
 
 This intentionally supports one API replica. A file-backed volume is not a substitute for a shared transactional database: do not scale the API horizontally until the persistence layer has been replaced by PostgreSQL or another shared database.
+
+
+## 6. Network boundary
+
+The game and API NetworkPolicies accept ingress only from Traefik pods labelled `app.kubernetes.io/name=traefik` in the `kube-system` namespace. The API is configured for one trusted proxy hop; keep the setting aligned with the actual ingress chain if the topology changes.
