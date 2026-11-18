@@ -18,7 +18,7 @@ build: ## Build minimal Alpine Docker images
 	@docker build -t tiny-myrmidon-game:v1 game/ || \
 		$(call fail,Failed to build Game image.)
 
-check: ## Run format checks, linter, ands
+check: ## Run Rust, JavaScript, and Kubernetes checks
 	@echo "==> Checking formatting..."
 	@cd api && cargo fmt --all -- --check || \
 		$(call fail,Run 'make fmt' to fix formatting.)
@@ -28,6 +28,10 @@ check: ## Run format checks, linter, ands
 	@echo "==> Running tests..."
 	@cd api && cargo test --all || \
 		$(call fail,API tests failed.)
+	@echo "==> Checking frontend JavaScript syntax..."
+	@for script in game/js/*.js; do \
+		node --input-type=module --check < "$script" || exit 1; \
+	done || $(call fail,Frontend JavaScript syntax check failed.)
 	@echo "==> Validating Kubernetes manifests..."
 	@python3 -c "import yaml; \
 		docs = list(yaml.safe_load_all(open('k8s/app.yaml'))); \
@@ -90,7 +94,7 @@ stop: ## Stop local k3d cluster without deleting it
 	@echo "==> Stopping k3d cluster..."
 	-@k3d cluster stop $(CLUSTER_NAME) 2>/dev/null || true
 
-test: ## Run APIs
+test: ## Run API tests
 	@cd api && cargo test --all
 
 tunnel: ## Expose game to mobile devices with instant QR code (Ctrl+C to stop)

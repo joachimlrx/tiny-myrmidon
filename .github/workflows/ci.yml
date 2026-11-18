@@ -71,7 +71,17 @@ jobs:
               c = dep['spec']['template']['spec']['containers'][0]
               limits = c.get('resources', {}).get('limits', {})
               assert 'cpu' in limits and 'memory' in limits, f'{name} missing resource limits'
-          print('All Kubernetes security assertions passed!')
+              policy = next(d for d in docs if d.get('kind') == 'NetworkPolicy' and d['spec']['podSelector']['matchLabels']['app'] == name)
+              peers = policy['spec']['ingress'][0].get('from', [])
+              assert any(
+                  peer.get('namespaceSelector', {}).get('matchLabels', {}).get('kubernetes.io/metadata.name') == 'kube-system'
+                  and peer.get('podSelector', {}).get('matchLabels', {}).get('app.kubernetes.io/name') == 'traefik'
+                  for peer in peers
+              ), f'{name} must only accept ingress from Traefik'
+          pvc = next(d for d in docs if d.get('kind') == 'PersistentVolumeClaim')
+          assert pvc['metadata']['name'] == 'tiny-myrmidon-leaderboard'
+          assert pvc['spec']['accessModes'] == ['ReadWriteOnce']
+          print('Kubernetes hardening and persistent volume assertions passed!')
           "
 
       - name: Verify frontend XSS protection
@@ -108,10 +118,23 @@ jobs:
       - name: Build Game Docker image
         run: docker build -t tiny-myrmidon-game:ci game/
 
-      - name: Enforce Alpine Docker size constraint (< 20 MB content size)
+      - name: Enforce Docker image size budgets
+        shell: bash
         run: |
-          echo "Checking image sizes..."
-          docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}" | grep tiny-myrmidon
+          set -euo pipefail
+          check_image_size() {
+            local image="$1"
+            local max_bytes="$2"
+            local size_bytes
+            size_bytes=$(docker image inspect --format='{{.Size}}' "$image")
+            echo "$image: $((size_bytes / 1024 / 1024)) MiB (limit: $((max_bytes / 1024 / 1024)) MiB)"
+            if [ "$size_bytes" -gt "$max_bytes" ]; then
+              echo "::error::$image exceeds its uncompressed image size budget"
+              return 1
+            fi
+          }
+          check_image_size tiny-myrmidon-api:ci $((20 * 1024 * 1024))
+          check_image_size tiny-myrmidon-game:ci $((25 * 1024 * 1024))
 
       - name: Validate Kubernetes manifests
         run: |
@@ -124,3 +147,31 @@ jobs:
             echo "Checking $script"
             node --input-type=module --check < "$script"
           done
+
+
+  browser-smoke:
+    name: Browser Gameplay Smoke Tests
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.1-noble
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v5
+
+      - name: Install pinned Playwright package
+        run: npm install --no-save --no-package-lock playwright@1.65.1
+
+      - name: Start the game and run browser smoke tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4173 --directory game >/tmp/tiny-myrmidon-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          node tests/browser-smoke.mjs

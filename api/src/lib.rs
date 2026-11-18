@@ -77,7 +77,10 @@ impl AppState {
 
         let mut scores = scores;
         scores.sort_by(|left, right| {
-            right.score.cmp(&left.score).then_with(|| right.wave.cmp(&left.wave))
+            right
+                .score
+                .cmp(&left.score)
+                .then_with(|| right.wave.cmp(&left.wave))
         });
         scores.truncate(crate::models::MAX_LEADERBOARD_ENTRIES);
 
@@ -94,7 +97,9 @@ impl AppState {
             return Ok(());
         };
 
-        let parent = path.parent().filter(|parent| !parent.as_os_str().is_empty())
+        let parent = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
             .unwrap_or_else(|| Path::new("."));
         tokio::fs::create_dir_all(parent).await?;
 
@@ -209,7 +214,10 @@ mod rate_limit_tests {
         }
 
         assert!(!state.check_rate_limit("198.51.100.1").await);
-        assert_eq!(state.submission_timestamps.lock().await.len(), MAX_TRACKED_IPS);
+        assert_eq!(
+            state.submission_timestamps.lock().await.len(),
+            MAX_TRACKED_IPS
+        );
     }
 
     #[tokio::test]
@@ -226,7 +234,10 @@ mod rate_limit_tests {
         }
 
         assert!(state.check_rate_limit("192.0.2.0").await);
-        assert_eq!(state.submission_timestamps.lock().await.len(), MAX_TRACKED_IPS);
+        assert_eq!(
+            state.submission_timestamps.lock().await.len(),
+            MAX_TRACKED_IPS
+        );
     }
 }
 
@@ -271,7 +282,8 @@ mod persistence_tests {
         std::fs::write(&path, b"{invalid json").unwrap();
 
         let result = AppState::from_file(&path, 0);
-        assert_eq!(result.unwrap_err().kind(), io::ErrorKind::InvalidData);
+        let error = result.err().unwrap();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
 
         std::fs::remove_file(path).unwrap();
     }
