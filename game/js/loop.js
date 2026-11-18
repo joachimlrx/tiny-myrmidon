@@ -44,7 +44,14 @@ const ORBITAL_ROTATION_SPEED = 3.6;
 const ORBITAL_DAMAGE_INTERVAL = 0.22;
 
 const movementInput = new THREE.Vector2();
+const desiredPlayerVelocity = new THREE.Vector2();
+const playerVelocity = new THREE.Vector2();
 const cameraTarget = new THREE.Vector3();
+
+// Separate acceleration and braking make the hero responsive without feeling weightless.
+const PLAYER_ACCELERATION = 22;
+const PLAYER_DECELERATION = 16;
+const PLAYER_MIN_SPEED = 0.12;
 const orbitalShieldPosition = new THREE.Vector3();
 const orbitalKnockbackDirection = new THREE.Vector3();
 const cameraControls = createCameraControls(camera);
@@ -105,20 +112,38 @@ function readMovementInput() {
   return movementInput;
 }
 
-/** Move the hero and keep it inside the arena. */
+/** Move the hero with acceleration, inertia and collision-aware braking. */
 function updatePlayerMovement(deltaTime) {
   const direction = cameraControls.toWorldDirection(readMovementInput());
   const inputLength = direction.length();
+  const hasInput = inputLength > 0.08;
+
+  desiredPlayerVelocity.set(0, 0);
+  if (hasInput) {
+    direction.multiplyScalar(1 / inputLength);
+    desiredPlayerVelocity.set(
+      direction.x * state.speed,
+      direction.y * state.speed,
+    );
+  }
+
+  const response = hasInput ? PLAYER_ACCELERATION : PLAYER_DECELERATION;
+  playerVelocity.lerp(
+    desiredPlayerVelocity,
+    1 - Math.exp(-response * deltaTime),
+  );
+
+  if (playerVelocity.lengthSq() < PLAYER_MIN_SPEED * PLAYER_MIN_SPEED) {
+    playerVelocity.set(0, 0);
+  }
 
   player.position.y = 0;
-  const isMoving = inputLength > 0.08;
+  player.position.x += playerVelocity.x * deltaTime;
+  player.position.z += playerVelocity.y * deltaTime;
 
-  if (isMoving) {
-    direction.multiplyScalar(1 / inputLength);
-    player.position.x += direction.x * state.speed * deltaTime;
-    player.position.z += direction.y * state.speed * deltaTime;
-
-    const targetYaw = Math.atan2(direction.x, direction.y);
+  // Face the actual travel direction, including the brief glide after releasing input.
+  if (playerVelocity.lengthSq() > PLAYER_MIN_SPEED * PLAYER_MIN_SPEED) {
+    const targetYaw = Math.atan2(playerVelocity.x, playerVelocity.y);
     const yawDelta = THREE.MathUtils.euclideanModulo(
       targetYaw - player.rotation.y + Math.PI,
       Math.PI * 2
@@ -128,7 +153,20 @@ function updatePlayerMovement(deltaTime) {
 
   const distanceFromCenter = Math.hypot(player.position.x, player.position.z);
   if (distanceFromCenter > MAX_PLAYER_RADIUS) {
-    player.position.multiplyScalar(MAX_PLAYER_RADIUS / distanceFromCenter);
+    const normalX = player.position.x / distanceFromCenter;
+    const normalZ = player.position.z / distanceFromCenter;
+    player.position.set(
+      normalX * MAX_PLAYER_RADIUS,
+      0,
+      normalZ * MAX_PLAYER_RADIUS,
+    );
+
+    // Remove only the velocity pointing out of the arena.
+    const outwardSpeed = playerVelocity.x * normalX + playerVelocity.y * normalZ;
+    if (outwardSpeed > 0) {
+      playerVelocity.x -= normalX * outwardSpeed;
+      playerVelocity.y -= normalZ * outwardSpeed;
+    }
   }
 
   for (const obstacle of arenaObstacles) {
@@ -145,9 +183,16 @@ function updatePlayerMovement(deltaTime) {
     const penetration = minimumDistance - distance;
     player.position.x += normalX * penetration;
     player.position.z += normalZ * penetration;
+
+    // Slide along obstacles instead of continuously pushing into them.
+    const inwardSpeed = playerVelocity.x * normalX + playerVelocity.y * normalZ;
+    if (inwardSpeed < 0) {
+      playerVelocity.x -= normalX * inwardSpeed;
+      playerVelocity.y -= normalZ * inwardSpeed;
+    }
   }
 
-  return isMoving;
+  return playerVelocity.lengthSq() > PLAYER_MIN_SPEED * PLAYER_MIN_SPEED;
 }
 
 /** Keep the camera focused on the hero while allowing mouse orbit and zoom. */
