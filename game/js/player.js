@@ -312,17 +312,12 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
   const data = player.userData;
   data.animationTime += dt;
   data.moveBlend = THREE.MathUtils.damp(data.moveBlend, moving ? 1 : 0, 9, dt);
-  data.twoHandBlend = THREE.MathUtils.damp(
-    data.twoHandBlend,
-    oneHanded ? 0 : 1,
-    13,
-    dt
-  );
+  data.twoHandBlend = THREE.MathUtils.damp(data.twoHandBlend, oneHanded ? 0 : 1, 13, dt);
 
-  const stride = Math.sin(data.walkPhase);
   const gaitSpeed = 5.2 + data.moveBlend * 7.2;
   data.walkPhase += dt * gaitSpeed;
   const phase = data.walkPhase;
+  const stride = Math.sin(phase);
   const idleWeight = 1 - data.moveBlend;
   const breath = Math.sin(data.animationTime * 2.15);
   const twoHands = data.twoHandBlend;
@@ -342,8 +337,7 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
     arm.elbow.rotation.x = -0.1 - Math.max(0, -swing) * 0.16 * data.moveBlend;
   }
 
-  data.body.position.y = 0.88
-    + Math.abs(stride) * 0.028 * data.moveBlend
+  data.body.position.y = 0.88 + Math.abs(stride) * 0.028 * data.moveBlend
     + breath * 0.01 * idleWeight;
   data.body.position.z = 0;
   data.body.rotation.x = -0.035 * data.moveBlend + breath * 0.012 * idleWeight;
@@ -418,68 +412,6 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
   data.head.rotation.z += hitWeight * 0.1;
   data.shadow.material.opacity = 0.42 + idleWeight * 0.025
     + Math.abs(stride) * data.moveBlend * 0.025;
-
-  bronze.emissive.setHex(state.upgradeAuraTimer > 0 ? 0x2b190d : 0x000000);
-  gold.emissiveIntensity = state.upgradeAuraTimer > 0 ? 0.18 : 0.035;
-}
-(mode = 'throw') {
-  const data = player.userData;
-  data.attackMode = mode;
-  data.attackDuration = mode === 'thrust' ? 0.3 : 0.48;
-  data.attackTimer = data.attackDuration;
-}
-
-export function triggerPlayerHit() {
-  player.userData.hitTimer = 0.22;
-}
-
-export function updatePlayerAnimation(dt, moving, state) {
-  const data = player.userData;
-  data.walkPhase += dt * (moving ? 10.5 : 2.2);
-  const gait = moving ? Math.sin(data.walkPhase) * 0.47 : Math.sin(data.walkPhase) * 0.025;
-
-  data.limbs[0].rotation.x = gait;
-  data.limbs[2].rotation.x = -gait;
-  data.limbs[1].rotation.x = -gait * 0.34;
-  data.limbs[3].rotation.x = gait * 0.34;
-  data.body.position.y = 0.88 + (moving ? Math.abs(Math.sin(data.walkPhase)) * 0.045 : Math.sin(data.walkPhase) * 0.014);
-  data.body.rotation.z = moving ? Math.sin(data.walkPhase) * 0.035 : 0;
-
-  data.attackTimer = Math.max(0, data.attackTimer - dt);
-  const attacking = data.attackTimer > 0;
-  const duration = data.attackDuration || 0.48;
-  const progress = attacking ? 1 - data.attackTimer / duration : 1;
-  const pulse = attacking ? Math.sin(Math.PI * progress) : 0;
-
-  if (attacking && data.attackMode === 'thrust') {
-    // A short, committed jab: extend the spear straight ahead and lean into it.
-    spearRig.position.z = 0.13 + pulse * 0.5;
-    spearRig.rotation.x = -0.08 * pulse;
-    data.limbs[3].rotation.x -= pulse * 0.48;
-    data.body.position.z = pulse * 0.075;
-    data.body.rotation.x = -pulse * 0.045;
-  } else if (attacking) {
-    // Wind the spear above the shoulder, then drive the arm forward on release.
-    const windup = Math.min(1, progress / 0.34);
-    const release = Math.max(0, (progress - 0.34) / 0.66);
-    spearRig.rotation.x = progress < 0.34
-      ? -0.92 * Math.sin(windup * Math.PI * 0.5)
-      : -0.92 + 1.38 * Math.sin(release * Math.PI * 0.5);
-    spearRig.position.z = 0.13 + (progress < 0.34
-      ? -0.13 * Math.sin(windup * Math.PI * 0.5)
-      : 0.12 * Math.sin(release * Math.PI));
-    data.limbs[3].rotation.x -= 0.2 + 0.28 * pulse;
-    data.body.rotation.x = -0.035 * pulse;
-  } else {
-    spearRig.rotation.x = 0;
-    spearRig.position.z = 0.13;
-    data.body.rotation.x = 0;
-    data.body.position.z = 0;
-  }
-
-  data.hitTimer = Math.max(0, data.hitTimer - dt);
-  data.body.position.x = data.hitTimer > 0 ? Math.sin(data.hitTimer * 48) * 0.055 : 0;
-  data.shadow.material.opacity = 0.42 + (moving ? Math.sin(data.walkPhase) * 0.04 : 0);
 
   bronze.emissive.setHex(state.upgradeAuraTimer > 0 ? 0x2b190d : 0x000000);
   gold.emissiveIntensity = state.upgradeAuraTimer > 0 ? 0.18 : 0.035;

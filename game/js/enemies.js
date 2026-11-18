@@ -465,6 +465,42 @@ function damagePlayer(state, enemy, player, direction) {
   }
 }
 
+function pushOutOfObstacles(position, radius) {
+  for (const obstacle of arenaObstacles) {
+    const dx = position.x - obstacle.x;
+    const dz = position.z - obstacle.z;
+    const distanceSquared = dx * dx + dz * dz;
+    const minimumDistance = radius + obstacle.radius;
+    if (distanceSquared >= minimumDistance * minimumDistance) continue;
+
+    const distance = Math.sqrt(Math.max(distanceSquared, 1e-8));
+    const normalX = distance > 1e-4 ? dx / distance : 1;
+    const normalZ = distance > 1e-4 ? dz / distance : 0;
+    const penetration = minimumDistance - distance;
+    position.x += normalX * penetration;
+    position.z += normalZ * penetration;
+  }
+}
+
+function damagePlayer(state, enemy, player, direction) {
+  if (state.playerHitTimer > 0) return;
+
+  state.hp = Math.max(0, state.hp - enemy.contactDamage);
+  state.playerHitTimer = 0.78;
+  triggerPlayerHit();
+  player.position.addScaledVector(direction, -1.15);
+
+  if (state.hp <= 0 && !state.over) {
+    state.over = true;
+    state.paused = true;
+    document.getElementById('final-score').textContent =
+      'Reached Wave ' + state.level + ' with ' + state.kills +
+      ' enemies defeated. Final Score: ' + state.score.toLocaleString();
+    document.getElementById('gameover-modal').classList.add('is-visible');
+    import('./leaderboard.js').then(({ loadLeaderboard }) => loadLeaderboard());
+  }
+}
+
 export function updateEnemies(dt, state, scene, player) {
   state.playerHitTimer = Math.max(0, state.playerHitTimer - dt);
 
@@ -622,11 +658,9 @@ export function updateEnemies(dt, state, scene, player) {
       wing.rotation.x = -0.08 + Math.cos(data.phase * 1.2) * 0.055;
     });
 
-    if (data.wings.length) {
-      enemy.position.y = 0.28 + Math.sin(data.phase * 1.6) * 0.08;
-    } else {
-      enemy.position.y = 0;
-    }
+    enemy.position.y = data.wings.length
+      ? 0.28 + Math.sin(data.phase * 1.6) * 0.08
+      : 0;
 
     if (data.weapon && enemy.archetype === 'cyclops' && !attacking) {
       data.weapon.rotation.x = Math.sin(data.phase * 0.55) * 0.045;
@@ -641,95 +675,6 @@ export function updateEnemies(dt, state, scene, player) {
           material.emissive.copy(data.baseEmissive[index]);
           material.emissiveIntensity = 1;
         });
-      }
-    }
-  }
-}
-dt, state, scene, player) {
-  state.playerHitTimer = Math.max(0, state.playerHitTimer - dt);
-
-  for (const enemy of enemies) {
-    const data = enemy.userData;
-    const toPlayer = new THREE.Vector3().subVectors(player.position, enemy.position).setY(0);
-    const distance = toPlayer.length();
-
-    if (distance > 0.001) {
-      toPlayer.normalize();
-      enemy.rotation.y = Math.atan2(toPlayer.x, toPlayer.z);
-      if (distance > data.colliderRadius + player.userData.colliderRadius + 0.18) {
-        enemy.position.addScaledVector(toPlayer, enemy.speed * dt);
-      }
-    }
-
-    enemy.position.addScaledVector(data.knockback, dt);
-
-    let separationX = 0;
-    let separationZ = 0;
-    for (const other of enemies) {
-      if (other === enemy) continue;
-      const dx = enemy.position.x - other.position.x;
-      const dz = enemy.position.z - other.position.z;
-      const distanceSq = dx * dx + dz * dz;
-      const minGap = (data.colliderRadius + other.userData.colliderRadius) * 0.84;
-      if (distanceSq > 1e-6 && distanceSq < minGap * minGap) {
-        const separationDistance = Math.sqrt(distanceSq);
-        const push = (minGap - separationDistance) / minGap;
-        separationX += dx / separationDistance * push;
-        separationZ += dz / separationDistance * push;
-      }
-    }
-
-    enemy.position.x += separationX * dt * 3.5;
-    enemy.position.z += separationZ * dt * 3.5;
-    data.knockback.multiplyScalar(Math.exp(-7.5 * dt));
-    data.phase += dt * (enemy.speed * 3 + 1);
-
-    const gait = Math.sin(data.phase);
-    data.legs[0].rotation.x = gait * 0.42;
-    data.legs[1].rotation.x = -gait * 0.42;
-    data.arms[0].rotation.x = -gait * 0.17;
-    data.arms[1].rotation.x = gait * 0.17;
-    data.wings.forEach((wing, index) => {
-      wing.rotation.z = (index ? 1 : -1) * (0.18 + Math.sin(data.phase * 1.55) * 0.42);
-    });
-
-    if (data.wings.length) {
-      enemy.position.y = 0.28 + Math.sin(data.phase * 1.6) * 0.11;
-    } else {
-      enemy.position.y = Math.sin(data.phase * 2) * 0.012;
-    }
-
-    if (data.weapon && enemy.archetype === 'cyclops') {
-      data.weapon.rotation.x = Math.sin(data.phase * 0.7) * 0.1;
-    }
-
-    // Convert the camera world orientation into the health bar's local frame.
-    data.bar.quaternion.copy(enemy.quaternion).invert().multiply(camera.quaternion);
-
-    if (data.flash > 0) {
-      data.flash -= dt;
-      if (data.flash <= 0) {
-        data.baseMaterials.forEach((material, index) => {
-          material.emissive.copy(data.baseEmissive[index]);
-          material.emissiveIntensity = 1;
-        });
-      }
-    }
-
-    if (distance < data.colliderRadius + player.userData.colliderRadius && state.playerHitTimer <= 0) {
-      state.hp = Math.max(0, state.hp - enemy.contactDamage);
-      state.playerHitTimer = 0.72;
-      triggerPlayerHit();
-      player.position.addScaledVector(toPlayer, -1.15);
-
-      if (state.hp <= 0 && !state.over) {
-        state.over = true;
-        state.paused = true;
-        document.getElementById('final-score').textContent =
-          'Reached Wave ' + state.level + ' with ' + state.kills +
-          ' enemies defeated. Final Score: ' + state.score.toLocaleString();
-        document.getElementById('gameover-modal').classList.add('is-visible');
-        import('./leaderboard.js').then(({ loadLeaderboard }) => loadLeaderboard());
       }
     }
   }
