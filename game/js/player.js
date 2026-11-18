@@ -333,6 +333,7 @@ gltfLoader.load(
       gltfRunAction: runAction,
       gltfAttackAction: attackAction,
       gltfCapeAction: capeAction,
+      gltfCrest: model.getObjectByName('Crest'),
       gltfReady: true
     });
   },
@@ -445,8 +446,10 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
   }
   capeAttribute.needsUpdate = true;
   data.capeGeometry.computeVertexNormals();
-  data.crest.rotation.z = -0.08 + Math.sin(data.animationTime * 3.1) * 0.035
+  const crestSway = -0.08 + Math.sin(data.animationTime * 3.1) * 0.035
     - stride * 0.045 * data.moveBlend;
+  data.crest.rotation.z = crestSway;
+  if (data.gltfCrest) data.gltfCrest.rotation.z = crestSway * 0.7;
 
   spearRig.position.lerpVectors(oneHandSpearPosition, twoHandSpearPosition, twoHands);
   data.shieldRig.position.lerpVectors(shieldGuardPosition, shieldStowPosition, twoHands);
