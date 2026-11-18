@@ -294,6 +294,7 @@ gltfLoader.load(
       if (child !== shadow) child.visible = false;
     }
     player.add(model);
+    window.__myrmidonModelLoaded = true;
 
     const mixer = new THREE.AnimationMixer(model);
     const clips = new Map(gltf.animations.map((clip) => [clip.name, clip]));
