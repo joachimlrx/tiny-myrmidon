@@ -143,9 +143,16 @@ When `SCORE_STORE_PATH` is configured, the API loads the leaderboard from a JSON
 
 This provides persistence across API pod restarts for the single-replica deployment. It is not a multi-replica database: keep the API at one replica while using the file store. For horizontal scaling or concurrent writers across pods, migrate the store to PostgreSQL.
 
-The Kubernetes deployment sets `TRUSTED_PROXY_HOPS=1`. The API selects the client address immediately before the configured trusted proxy hops in `X-Forwarded-For`; the matching NetworkPolicies restrict pod ingress to the Traefik controller in `kube-system`. When the setting is `0`, forwarding headers are ignored and the TCP peer address supplied by Axum is used. Configure the hop count to match the actual proxy chain. Outside that deployment, the default is `0`: the API ignores forwarding headers and rate-limits by the TCP peer address supplied by the server. This prevents clients from spoofing `X-Forwarded-For` and avoids sharing one quota across all direct clients. In in-memory router tests without connection metadata, the fallback key remains `unknown`.
+The Kubernetes deployment sets `TRUSTED_PROXY_HOPS=1`. The API selects the client address immediately before the configured trusted proxy hops in `X-Forwarded-For`; the matching NetworkPolicies restrict pod ingress to Traefik in `kube-system`. When the setting is `0`, forwarding headers are ignored and the TCP peer address supplied by Axum is used. Configure the hop count to match the actual proxy chain.
 
 If the file is missing, the API starts with an empty leaderboard. If it contains invalid JSON, startup fails rather than silently discarding existing data. Back up the PVC before making storage changes.
+
+To export the current leaderboard before a storage change, run this from a machine with access to the cluster:
+
+```bash
+POD=$(kubectl get pods -l app=tiny-myrmidon-api -o jsonpath='{.items[0].metadata.name}')
+kubectl exec "$POD" -- cat /data/scores.json > scores-backup.json
+```
 
 
 ## 5. Score integrity and limits
