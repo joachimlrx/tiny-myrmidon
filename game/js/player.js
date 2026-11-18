@@ -7,22 +7,17 @@ function makeClothTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 256;
-  const context = canvas.getContext('2d');
-  context.fillStyle = '#160b12';
-  context.fillRect(0, 0, 256, 256);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#8b111b';
+  ctx.fillRect(0, 0, 256, 256);
 
-  for (let y = 0; y < 256; y += 4) {
-    context.fillStyle = y % 8 === 0 ? 'rgba(240,180,128,.08)' : 'rgba(10,0,8,.10)';
-    context.fillRect(0, y, 256, 1);
+  for (let y = 0; y < 256; y += 3) {
+    ctx.fillStyle = y % 6 === 0 ? 'rgba(255,140,120,0.09)' : 'rgba(20,0,4,0.14)';
+    ctx.fillRect(0, y, 256, 1);
   }
-  for (let x = 0; x < 256; x += 4) {
-    context.fillStyle = x % 8 === 0 ? 'rgba(255,220,180,.06)' : 'rgba(0,0,0,.08)';
-    context.fillRect(x, 0, 1, 256);
-  }
-  for (let i = 0; i < 900; i += 1) {
-    const shade = Math.random() > 0.5 ? '255,210,170' : '8,0,8';
-    context.fillStyle = 'rgba(' + shade + ',' + (Math.random() * 0.07) + ')';
-    context.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+  for (let i = 0; i < 1200; i += 1) {
+    ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,180,150,0.06)' : 'rgba(10,0,2,0.12)';
+    ctx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -33,42 +28,86 @@ function makeClothTexture() {
   return texture;
 }
 
-const bronze = new THREE.MeshPhysicalMaterial({
-  color: 0x0d121b,
-  metalness: 0.72,
-  roughness: 0.42,
-  clearcoat: 0.2,
-  clearcoatRoughness: 0.5,
-  envMapIntensity: 0.68
-});
-const gold = new THREE.MeshPhysicalMaterial({
-  color: 0x343d49,
-  metalness: 0.82,
+function makeTatteredAlphaMap() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, 256, 256);
+
+  // Carve ragged tears along the bottom hem (v near 0 in PlaneGeometry UVs)
+  ctx.fillStyle = '#000000';
+  for (let x = 0; x < 256; x += 2) {
+    const wave = Math.sin(x * 0.14) * 14 + Math.cos(x * 0.37) * 9 + Math.sin(x * 0.85) * 6;
+    const tearHeight = Math.max(4, 24 + wave);
+    ctx.fillRect(x, 256 - tearHeight, 2, tearHeight);
+  }
+  // Small battle holes near the hem
+  for (let i = 0; i < 18; i += 1) {
+    const hx = 12 + ((i * 37) % 232);
+    const hy = 212 + ((i * 19) % 28);
+    ctx.beginPath();
+    ctx.arc(hx, hy, 2 + (i % 3), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  return texture;
+}
+
+// Materials matching the Shadow Knight concept art
+const darkSteel = new THREE.MeshPhysicalMaterial({
+  color: 0x161920,
+  metalness: 0.78,
   roughness: 0.36,
-  clearcoat: 0.24,
+  clearcoat: 0.18,
   clearcoatRoughness: 0.45,
-  envMapIntensity: 0.76,
-  emissive: 0x080b10,
-  emissiveIntensity: 0.04
 });
-const red = new THREE.MeshStandardMaterial({
-  color: 0x260b13,
+const obsidianPlate = new THREE.MeshPhysicalMaterial({
+  color: 0x0d1016,
+  metalness: 0.84,
+  roughness: 0.3,
+});
+const agedBronze = new THREE.MeshPhysicalMaterial({
+  color: 0xa67c37,
+  metalness: 0.86,
+  roughness: 0.34,
+  clearcoat: 0.25,
+  emissive: 0x1f1302,
+  emissiveIntensity: 0.15,
+});
+const crimsonCloth = new THREE.MeshStandardMaterial({
+  color: 0x9e141f,
   map: makeClothTexture(),
-  roughness: 0.92,
-  side: THREE.DoubleSide
+  roughness: 0.86,
+  side: THREE.DoubleSide,
 });
-const dark = new THREE.MeshStandardMaterial({
-  color: 0x201c20,
-  metalness: 0.28,
-  roughness: 0.68
+const tatteredCapeMat = new THREE.MeshStandardMaterial({
+  color: 0x99111c,
+  map: makeClothTexture(),
+  alphaMap: makeTatteredAlphaMap(),
+  alphaTest: 0.45,
+  roughness: 0.88,
+  side: THREE.DoubleSide,
 });
-const skin = new THREE.MeshPhysicalMaterial({
-  color: 0x10141b,
+const leatherStrap = new THREE.MeshStandardMaterial({
+  color: 0x2b1710,
+  metalness: 0.15,
   roughness: 0.82,
-  clearcoat: 0.025
 });
-const black = new THREE.MeshStandardMaterial({ color: 0x030509, metalness: 0.42, roughness: 0.36 });
-const crimson = new THREE.MeshStandardMaterial({ color: 0x8e1025, metalness: 0.58, roughness: 0.32, emissive: 0x30000a, emissiveIntensity: 0.28 });
+const visorGlow = new THREE.MeshStandardMaterial({
+  color: 0xffb32c,
+  emissive: 0xff7b00,
+  emissiveIntensity: 2.1,
+  roughness: 0.2,
+});
+const bladeSteel = new THREE.MeshPhysicalMaterial({
+  color: 0x2a303b,
+  metalness: 0.92,
+  roughness: 0.22,
+  clearcoat: 0.3,
+});
 
 function mesh(parent, geometry, material, position, rotation) {
   const object = new THREE.Mesh(geometry, material);
@@ -80,13 +119,28 @@ function mesh(parent, geometry, material, position, rotation) {
   return object;
 }
 
+function createBronzeMedallion(parent, radius, position, rotation) {
+  const group = new THREE.Group();
+  group.position.set(...position);
+  if (rotation) group.rotation.set(...rotation);
+  parent.add(group);
+
+  mesh(group, new THREE.CylinderGeometry(radius, radius, 0.024, 24), agedBronze, [0, 0, 0], [Math.PI / 2, 0, 0]);
+  mesh(group, new THREE.CylinderGeometry(radius * 0.72, radius * 0.72, 0.028, 20), obsidianPlate, [0, 0, 0], [Math.PI / 2, 0, 0]);
+  mesh(group, new THREE.BoxGeometry(radius * 1.4, radius * 0.22, 0.032), agedBronze, [0, 0, 0]);
+  mesh(group, new THREE.BoxGeometry(radius * 0.22, radius * 1.4, 0.032), agedBronze, [0, 0, 0]);
+  mesh(group, new THREE.SphereGeometry(radius * 0.22, 12, 10), agedBronze, [0, 0, 0.012]);
+  return group;
+}
+
+// Ground shadow
 const shadow = new THREE.Mesh(
-  new THREE.CircleGeometry(0.68, 40),
+  new THREE.CircleGeometry(0.72, 40),
   new THREE.MeshBasicMaterial({
     color: 0x03050b,
     transparent: true,
-    opacity: 0.52,
-    depthWrite: false
+    opacity: 0.54,
+    depthWrite: false,
   })
 );
 shadow.rotation.x = -Math.PI / 2;
@@ -97,30 +151,30 @@ const body = new THREE.Group();
 body.position.y = 0.88;
 player.add(body);
 
-// Tailored black underlayer and a continuous, anatomically shaped obsidian cuirass.
-const tunic = mesh(body, new THREE.CapsuleGeometry(0.285, 0.58, 8, 24), red, [0, 0.015, -0.025]);
-tunic.scale.set(1.0, 1.08, 0.86);
+// Under-tunic & sculpted dark steel cuirass with bronze trim
+const tunic = mesh(body, new THREE.CapsuleGeometry(0.28, 0.56, 8, 24), obsidianPlate, [0, 0.01, -0.02]);
+tunic.scale.set(1.02, 1.06, 0.85);
 
-// Build the cuirass as one shaped surface: broad chest, tapered waist, subtle lower flare.
 function createCuirassGeometry() {
   const rings = [
-    [-0.47, 0.255, 0.17], [-0.36, 0.265, 0.185],
-    [-0.20, 0.285, 0.19], [-0.04, 0.315, 0.205],
-    [0.12, 0.355, 0.22], [0.28, 0.385, 0.205],
-    [0.40, 0.345, 0.17], [0.47, 0.285, 0.145]
+    [-0.45, 0.25, 0.165], [-0.34, 0.265, 0.18],
+    [-0.18, 0.29, 0.19], [-0.02, 0.325, 0.21],
+    [0.14, 0.37, 0.225], [0.28, 0.395, 0.21],
+    [0.39, 0.34, 0.17], [0.45, 0.27, 0.145],
   ];
   const segments = 48;
   const positions = [];
-  const uvs = [];
   const indices = [];
   rings.forEach(([y, width, depth], row) => {
     for (let segment = 0; segment <= segments; segment += 1) {
       const angle = (segment / segments) * Math.PI * 2;
       const front = Math.max(0, Math.sin(angle));
-      const chestBulge = Math.exp(-Math.pow((y - 0.2) / 0.19, 2)) * Math.pow(front, 3);
-      positions.push(Math.cos(angle) * width, y,
-        Math.sin(angle) * (depth + chestBulge * 0.025) + 0.015);
-      uvs.push(segment / segments, row / (rings.length - 1));
+      const chestRidge = Math.exp(-Math.pow((y - 0.16) / 0.18, 2)) * Math.pow(front, 2.5);
+      positions.push(
+        Math.cos(angle) * width,
+        y,
+        Math.sin(angle) * (depth + chestRidge * 0.04) + 0.015
+      );
       if (row < rings.length - 1 && segment < segments) {
         const a = row * (segments + 1) + segment;
         const b = a + segments + 1;
@@ -130,202 +184,143 @@ function createCuirassGeometry() {
   });
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   return geometry;
 }
-mesh(body, createCuirassGeometry(), bronze, [0, 0.02, 0]);
-mesh(body, new THREE.BoxGeometry(0.018, 0.49, 0.018), gold, [0, 0.13, 0.232])
-  .scale.set(0.72, 1, 0.55);
+mesh(body, createCuirassGeometry(), darkSteel, [0, 0.02, 0]);
 
-// Five curved overlapping tassets follow the hips without hiding the thighs.
-function createTassetGeometry(width, height) {
-  const positions = [];
-  const indices = [];
-  const across = 8;
-  const down = 5;
-  for (let row = 0; row <= down; row += 1) {
-    const v = row / down;
-    for (let col = 0; col <= across; col += 1) {
-      const u = col / across;
-      const x = (u - 0.5) * width;
-      const y = (0.5 - v) * height;
-      const curve = 0.035 * (1 - Math.pow((u - 0.5) * 2, 2));
-      positions.push(x, y, curve + 0.018 * Math.sin(v * Math.PI));
-      if (row < down && col < across) {
-        const a = row * (across + 1) + col;
-        const b = a + across + 1;
-        indices.push(a, b, a + 1, a + 1, b, b + 1);
-      }
-    }
+// V-shaped bronze chest trim and center ridge
+mesh(body, new THREE.BoxGeometry(0.022, 0.44, 0.025), agedBronze, [0, 0.12, 0.245]);
+for (const side of [-1, 1]) {
+  mesh(body, new THREE.BoxGeometry(0.24, 0.024, 0.024), agedBronze, [side * 0.12, 0.22, 0.235], [0, 0, side * 0.32]);
+  mesh(body, new THREE.BoxGeometry(0.22, 0.02, 0.022), agedBronze, [side * 0.11, -0.02, 0.215], [0, 0, side * 0.28]);
+}
+
+// Draped crimson scarf / cowl across the collar with twin bronze medallions
+const scarfMain = mesh(body, new THREE.TorusGeometry(0.28, 0.085, 14, 36), crimsonCloth, [0, 0.37, 0.02], [Math.PI * 0.46, 0, 0]);
+scarfMain.scale.set(1.22, 1.05, 0.92);
+const scarfFold = mesh(body, new THREE.TorusGeometry(0.25, 0.06, 12, 32, Math.PI * 1.15), crimsonCloth, [0, 0.31, 0.09], [Math.PI * 0.38, 0, -Math.PI * 0.08]);
+scarfFold.scale.set(1.18, 0.95, 0.95);
+for (const side of [-1, 1]) {
+  createBronzeMedallion(body, 0.072, [side * 0.25, 0.33, 0.22], [-0.15, side * 0.35, 0]);
+}
+
+// Leather belt with large engraved bronze buckle
+mesh(body, new THREE.CylinderGeometry(0.285, 0.3, 0.11, 32), leatherStrap, [0, -0.41, 0.01]);
+mesh(body, new THREE.TorusGeometry(0.285, 0.016, 8, 32), agedBronze, [0, -0.36, 0.01], [Math.PI / 2, 0, 0]);
+mesh(body, new THREE.TorusGeometry(0.295, 0.016, 8, 32), agedBronze, [0, -0.46, 0.01], [Math.PI / 2, 0, 0]);
+createBronzeMedallion(body, 0.088, [0, -0.41, 0.305], [0, 0, 0]);
+
+// Tattered crimson loincloth / tabard hanging under the belt
+const frontTabard = mesh(body, new THREE.PlaneGeometry(0.32, 0.56, 6, 8), tatteredCapeMat, [0, -0.71, 0.265]);
+frontTabard.rotation.x = -0.08;
+const backTabard = mesh(body, new THREE.PlaneGeometry(0.34, 0.58, 6, 8), tatteredCapeMat, [0, -0.72, -0.26]);
+backTabard.rotation.x = 0.1;
+
+// Layered dark steel & bronze-trimmed tassets flanking the tabard
+for (const side of [-1, 1]) {
+  for (let tier = 0; tier < 2; tier += 1) {
+    const tasset = mesh(
+      body,
+      new THREE.BoxGeometry(0.22, 0.24, 0.045),
+      darkSteel,
+      [side * (0.23 + tier * 0.03), -0.54 - tier * 0.14, 0.14 - tier * 0.03],
+      [0.14, side * 0.35, side * (0.18 + tier * 0.08)]
+    );
+    mesh(tasset, new THREE.BoxGeometry(0.225, 0.022, 0.052), agedBronze, [0, -0.11, 0]);
+    mesh(tasset, new THREE.BoxGeometry(0.022, 0.24, 0.052), agedBronze, [side * 0.1, 0, 0]);
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  return geometry;
-}
-for (let index = -2; index <= 2; index += 1) {
-  const plate = mesh(body, createTassetGeometry(0.145, 0.32), bronze,
-    [index * 0.137, -0.59, 0.145 - Math.abs(index) * 0.012]);
-  plate.rotation.z = -index * 0.055;
-  mesh(plate, new THREE.BoxGeometry(0.105, 0.012, 0.012), gold, [0, -0.145, 0.025]);
 }
 
-mesh(body, new THREE.TorusGeometry(0.285, 0.024, 10, 36), gold, [0, -0.405, 0]);
-mesh(body, new THREE.CylinderGeometry(0.29, 0.315, 0.12, 32), dark, [0, -0.415, 0]);
-mesh(body, new THREE.TorusGeometry(0.305, 0.021, 8, 32), gold, [0, -0.48, 0]);
-
-// Fully enclosed war-helm: no skin or face is visible.
+// Corinthian Shadow-Knight Helm with segmented fan crest & glowing V-visor (no horns)
 const head = new THREE.Group();
-head.position.set(0, 0.6, 0.025);
+head.position.set(0, 0.62, 0.02);
 body.add(head);
-mesh(head, new THREE.SphereGeometry(0.225, 24, 18), black, [0, -0.035, 0.035]);
-const helmet = mesh(
+
+// Inner shadow hood
+mesh(head, new THREE.SphereGeometry(0.22, 24, 18), obsidianPlate, [0, -0.02, 0.02]);
+
+// Domed black steel helmet
+const helmDome = mesh(
   head,
-  new THREE.SphereGeometry(0.3, 32, 24, 0, Math.PI * 2, 0, Math.PI * 0.82),
-  bronze,
-  [0, 0.085, -0.005]
+  new THREE.SphereGeometry(0.285, 32, 24, 0, Math.PI * 2, 0, Math.PI * 0.78),
+  darkSteel,
+  [0, 0.07, -0.01]
 );
-helmet.scale.set(1.02, 1.12, 1);
-mesh(head, new THREE.TorusGeometry(0.285, 0.035, 10, 32, Math.PI), gold, [0, 0.04, 0.02], [Math.PI, 0, 0]);
-mesh(head, new THREE.BoxGeometry(0.5, 0.055, 0.09), gold, [0, 0.035, 0.245]);
-mesh(head, new THREE.BoxGeometry(0.075, 0.26, 0.085), gold, [0, -0.085, 0.255]);
+helmDome.scale.set(0.98, 1.12, 1.04);
 
+// Center brow ridge & nose guard
+mesh(head, new THREE.BoxGeometry(0.045, 0.25, 0.08), darkSteel, [0, -0.04, 0.265]);
+mesh(head, new THREE.BoxGeometry(0.018, 0.26, 0.088), agedBronze, [0, -0.03, 0.27]);
+
+// Angled brow plates & glowing amber V-eyes
 for (const side of [-1, 1]) {
-  mesh(head, new THREE.BoxGeometry(0.13, 0.22, 0.13), bronze, [side * 0.245, -0.13, 0.06], [0, 0, side * -0.2]);
+  mesh(head, new THREE.BoxGeometry(0.17, 0.048, 0.08), darkSteel, [side * 0.095, 0.045, 0.25], [0.08, side * 0.25, side * -0.24]);
+  mesh(head, new THREE.BoxGeometry(0.15, 0.014, 0.085), agedBronze, [side * 0.095, 0.022, 0.254], [0.08, side * 0.25, side * -0.24]);
+
+  // Glowing V-shaped eye slit
+  mesh(head, new THREE.BoxGeometry(0.125, 0.022, 0.03), visorGlow, [side * 0.085, 0.002, 0.255], [0, side * 0.26, side * -0.24]);
+
+  // Sharp cheek guards
+  const cheek = mesh(head, new THREE.BoxGeometry(0.14, 0.22, 0.14), darkSteel, [side * 0.155, -0.11, 0.14], [0.08, side * 0.38, side * -0.12]);
+  mesh(cheek, new THREE.BoxGeometry(0.02, 0.22, 0.145), agedBronze, [side * -0.065, 0, 0.005]);
 }
-const eyeLine = mesh(head, new THREE.BoxGeometry(0.255, 0.022, 0.018), crimson, [0, -0.015, 0.265]);
-eyeLine.material = crimson;
-mesh(head, new THREE.BoxGeometry(0.34, 0.18, 0.075), black, [0, -0.17, 0.205], [0.16, 0, 0]);
-mesh(head, new THREE.ConeGeometry(0.055, 0.19, 5), gold, [0, -0.23, 0.255], [Math.PI, 0, 0]);
-for (const side of [-1, 1]) {
-  mesh(head, new THREE.BoxGeometry(0.045, 0.19, 0.055), crimson, [side * 0.145, -0.015, 0.25], [0, 0, side * 0.12]);
+
+// Segmented fan-shaped metal crest (mohawk plume)
+const crestGroup = new THREE.Group();
+crestGroup.position.set(0, 0.34, -0.02);
+head.add(crestGroup);
+mesh(crestGroup, new THREE.BoxGeometry(0.055, 0.12, 0.34), agedBronze, [0, -0.04, 0], [-0.12, 0, 0]);
+for (let seg = 0; seg < 6; seg += 1) {
+  const angle = -0.35 + seg * 0.14;
+  const blade = mesh(
+    crestGroup,
+    new THREE.BoxGeometry(0.038, 0.19, 0.075),
+    seg % 2 === 0 ? darkSteel : obsidianPlate,
+    [0, 0.07 + Math.cos(angle) * 0.03, Math.sin(angle) * 0.22],
+    [angle, 0, 0]
+  );
+  mesh(blade, new THREE.BoxGeometry(0.042, 0.018, 0.078), agedBronze, [0, 0.09, 0]);
 }
+const crest = crestGroup;
 
-const crest = mesh(head, new THREE.CapsuleGeometry(0.055, 0.48, 6, 12), black, [0, 0.39, -0.04], [0, 0, -0.1]);
-crest.scale.set(0.9, 1.06, 1.55);
-mesh(head, new THREE.SphereGeometry(0.065, 14, 10), crimson, [0, 0.55, -0.04]);
-
-
-// Reinforced pauldrons, layered faulds and sharp silhouette accents.
+// Layered 3-tier spiked pauldrons with bronze rims
 for (const side of [-1, 1]) {
-  const pauldron = mesh(body, new THREE.SphereGeometry(0.245, 24, 18), bronze,
-    [side * 0.405, 0.205, 0.005]);
-  pauldron.scale.set(1.16, 0.72, 1.08);
-  mesh(body, new THREE.ConeGeometry(0.075, 0.24, 6), gold,
-    [side * 0.53, 0.19, 0.015], [0, 0, side * -0.52]);
-  mesh(body, new THREE.ConeGeometry(0.045, 0.17, 5), crimson,
-    [side * 0.34, 0.39, 0.04], [0, 0, side * 0.22]);
-  // Rivets on the shoulder plates.
-  for (let i = 0; i < 3; i += 1) {
-    mesh(body, new THREE.SphereGeometry(0.025, 8, 6), gold,
-      [side * (0.34 + i * 0.07), 0.24, 0.19]);
+  for (let layer = 0; layer < 3; layer += 1) {
+    const scale = 1 - layer * 0.14;
+    const yOff = 0.24 - layer * 0.085;
+    const xOff = side * (0.41 + layer * 0.035);
+    const pauldron = mesh(
+      body,
+      new THREE.SphereGeometry(0.24 * scale, 22, 16, 0, Math.PI * 2, 0, Math.PI * 0.58),
+      darkSteel,
+      [xOff, yOff, 0],
+      [0, 0, side * (-0.32 - layer * 0.14)]
+    );
+    pauldron.scale.set(1.15, 0.85, 1.15);
+
+    const rim = mesh(
+      body,
+      new THREE.TorusGeometry(0.235 * scale, 0.016, 8, 24),
+      agedBronze,
+      [xOff, yOff - 0.01, 0],
+      [Math.PI / 2, side * (-0.32 - layer * 0.14), 0]
+    );
+    rim.scale.set(1.15, 1.15, 1);
+
+    // Shoulder wing flare
+    mesh(
+      body,
+      new THREE.ConeGeometry(0.055 * scale, 0.18 * scale, 4),
+      agedBronze,
+      [xOff + side * 0.14, yOff + 0.09, 0],
+      [0, 0, side * -0.65]
+    );
   }
 }
-// Raised chest crest: a narrow crimson blade over the breastplate.
-mesh(body, new THREE.ConeGeometry(0.105, 0.32, 5), crimson,
-  [0, 0.12, 0.39], [0, 0, Math.PI]);
-mesh(body, new THREE.BoxGeometry(0.035, 0.31, 0.025), gold, [0, 0.13, 0.405]);
-// Overlapping armored skirt plates.
-for (const side of [-1, 1]) {
-  for (let row = 0; row < 2; row += 1) {
-    const fauld = mesh(body, new THREE.BoxGeometry(0.19, 0.27, 0.09), bronze,
-      [side * (0.17 + row * 0.025), -0.49 - row * 0.12, 0.19],
-      [0.16, 0, side * (0.08 + row * 0.08)]);
-    fauld.scale.set(1, 1, 1.1);
-    mesh(body, new THREE.BoxGeometry(0.025, 0.19, 0.018), crimson,
-      [side * (0.17 + row * 0.025), -0.49 - row * 0.12, 0.24]);
-  }
-}
 
-
-// Additional silhouette pass: layered black-steel armor, bevel-like trim and war trophies.
-const edgeSteel = new THREE.MeshStandardMaterial({
-  color: 0x8993a1, metalness: 0.88, roughness: 0.29
-});
-const deepSteel = new THREE.MeshStandardMaterial({
-  color: 0x090d14, metalness: 0.78, roughness: 0.3
-});
-const leather = new THREE.MeshStandardMaterial({
-  color: 0x16070d, metalness: 0.18, roughness: 0.88
-});
-
-// Angular brow and cheek guards make the visor read as a forged, hostile mask.
-mesh(head, new THREE.BoxGeometry(0.34, 0.055, 0.105), deepSteel,
-  [0, 0.055, 0.285], [0.12, 0, 0]);
-for (const side of [-1, 1]) {
-  const cheek = mesh(head, new THREE.ConeGeometry(0.105, 0.27, 5), bronze,
-    [side * 0.19, -0.19, 0.205], [0.12, 0, side * -0.72]);
-  cheek.scale.set(0.78, 1.2, 0.72);
-  mesh(head, new THREE.BoxGeometry(0.075, 0.24, 0.11), deepSteel,
-    [side * 0.105, -0.12, 0.285], [0.12, 0, side * 0.12]);
-}
-// Crown ridge and swept-back horns give the helmet a stronger, readable outline.
-mesh(head, new THREE.ConeGeometry(0.075, 0.32, 6), edgeSteel,
-  [0, 0.34, -0.13], [Math.PI * 0.82, 0, 0]);
-for (const side of [-1, 1]) {
-  const horn = mesh(head, new THREE.ConeGeometry(0.075, 0.48, 6), deepSteel,
-    [side * 0.205, 0.28, -0.045], [0, 0, side * -0.72]);
-  horn.rotation.x = -0.28;
-  mesh(head, new THREE.ConeGeometry(0.035, 0.25, 5), crimson,
-    [side * 0.22, 0.34, 0.015], [0, 0, side * -0.7]);
-}
-
-// Raised breastplate ribs, segmented abdominal plates and riveted waist harness.
-for (const side of [-1, 1]) {
-  mesh(body, new THREE.CapsuleGeometry(0.035, 0.25, 5, 10), edgeSteel,
-    [side * 0.19, 0.12, 0.205], [0, 0, side * -0.23]);
-  for (let row = 0; row < 3; row += 1) {
-    const plate = mesh(body, new THREE.BoxGeometry(0.17, 0.075, 0.035), deepSteel,
-      [side * 0.085, -0.12 - row * 0.095, 0.205], [0.04, 0, side * 0.035]);
-    plate.scale.x = 1 - row * 0.12;
-    mesh(body, new THREE.SphereGeometry(0.018, 8, 6), edgeSteel,
-      [side * 0.14, -0.12 - row * 0.095, 0.23]);
-  }
-  // Shoulder rim and a second overlapping blade on each pauldron.
-  mesh(body, new THREE.TorusGeometry(0.19, 0.018, 7, 24, Math.PI),
-    edgeSteel, [side * 0.405, 0.205, 0.045], [0, 0, side * 0.1]);
-  const blade = mesh(body, new THREE.ConeGeometry(0.07, 0.31, 5), deepSteel,
-    [side * 0.49, 0.29, 0.11], [0, 0, side * -0.62]);
-  blade.scale.set(0.85, 1.15, 0.8);
-}
-// Heavy forearm bracers and articulated knuckle plates, attached to the moving arm rigs.
-for (const side of [-1, 1]) {
-  const bracer = mesh(body, new THREE.CylinderGeometry(0.105, 0.13, 0.25, 8),
-    deepSteel, [side * 0.405, -0.27, 0.07], [0, 0, Math.PI / 2]);
-  bracer.scale.set(1, 1, 1.05);
-  mesh(body, new THREE.BoxGeometry(0.13, 0.11, 0.12), bronze,
-    [side * 0.405, -0.405, 0.105], [0.08, 0, side * 0.12]);
-  for (let finger = 0; finger < 3; finger += 1) {
-    mesh(body, new THREE.BoxGeometry(0.035, 0.085, 0.055), edgeSteel,
-      [side * (0.35 + finger * 0.055), -0.46, 0.16], [0.12, 0, 0]);
-  }
-}
-// Layered greaves, shin ridges and pointed sabatons strengthen the lower silhouette.
-for (const side of [-1, 1]) {
-  const shin = mesh(body, new THREE.CylinderGeometry(0.095, 0.125, 0.31, 8),
-    bronze, [side * 0.19, -1.19, 0.055], [0.08, 0, 0]);
-  shin.scale.set(1, 1, 0.72);
-  mesh(body, new THREE.ConeGeometry(0.07, 0.24, 5), deepSteel,
-    [side * 0.19, -1.18, 0.145], [Math.PI, 0, 0]);
-  mesh(body, new THREE.BoxGeometry(0.14, 0.035, 0.035), edgeSteel,
-    [side * 0.19, -1.05, 0.13]);
-  mesh(body, new THREE.ConeGeometry(0.055, 0.18, 5), deepSteel,
-    [side * 0.19, -1.36, 0.28], [Math.PI / 2, 0, 0]);
-}
-// A riveted belt clasp and hanging crimson war-tags add small-scale visual richness.
-mesh(body, new THREE.BoxGeometry(0.15, 0.16, 0.055), deepSteel, [0, -0.45, 0.22]);
-mesh(body, new THREE.ConeGeometry(0.075, 0.12, 4), crimson,
-  [0, -0.45, 0.265], [0, 0, Math.PI]);
-for (const side of [-1, 1]) {
-  const tag = mesh(body, new THREE.BoxGeometry(0.045, 0.22, 0.018), leather,
-    [side * 0.26, -0.69, 0.17], [0, 0, side * -0.12]);
-  mesh(body, new THREE.SphereGeometry(0.018, 8, 6), crimson,
-    [side * 0.26, -0.59, 0.19]);
-}
-
+// Articulated Legs with layered knee guards and bronze-trimmed greaves
 const footWorldPosition = new THREE.Vector3();
 const legs = [];
 const arms = [];
@@ -333,92 +328,125 @@ for (const side of [-1, 1]) {
   const hip = new THREE.Group();
   hip.position.set(side * 0.19, -0.47, 0);
   body.add(hip);
-  mesh(hip, new THREE.CapsuleGeometry(0.105, 0.19, 6, 14), dark, [0, -0.12, 0]);
+  mesh(hip, new THREE.CapsuleGeometry(0.115, 0.2, 6, 14), obsidianPlate, [0, -0.12, 0]);
+  mesh(hip, new THREE.BoxGeometry(0.16, 0.22, 0.18), darkSteel, [side * 0.02, -0.12, 0.02], [0, 0, side * -0.08]);
 
   const knee = new THREE.Group();
   knee.position.y = -0.275;
   hip.add(knee);
-  mesh(knee, new THREE.SphereGeometry(0.105, 18, 14), bronze, [0, 0, 0.025]);
-  mesh(knee, new THREE.CapsuleGeometry(0.085, 0.17, 6, 14), dark, [0, -0.12, 0.015]);
+  // Angular winged knee guard
+  mesh(knee, new THREE.ConeGeometry(0.11, 0.22, 5), darkSteel, [0, 0.02, 0.085], [0.2, 0, 0]);
+  mesh(knee, new THREE.BoxGeometry(0.15, 0.03, 0.14), agedBronze, [0, 0.05, 0.05]);
+  // Greave
+  mesh(knee, new THREE.CapsuleGeometry(0.095, 0.18, 6, 14), darkSteel, [0, -0.12, 0.01]);
+  mesh(knee, new THREE.BoxGeometry(0.03, 0.24, 0.04), agedBronze, [0, -0.12, 0.105]);
 
   const foot = new THREE.Group();
   foot.position.set(0, -0.255, 0.04);
   knee.add(foot);
-  mesh(foot, new THREE.BoxGeometry(0.205, 0.095, 0.29), dark, [0, 0.01, 0.105]);
-  mesh(foot, new THREE.BoxGeometry(0.19, 0.11, 0.065), gold, [0, 0.025, 0.225]);
+  mesh(foot, new THREE.BoxGeometry(0.21, 0.1, 0.31), darkSteel, [0, 0.01, 0.1]);
+  mesh(foot, new THREE.BoxGeometry(0.215, 0.03, 0.32), agedBronze, [0, -0.02, 0.1]);
+  mesh(foot, new THREE.BoxGeometry(0.18, 0.11, 0.08), agedBronze, [0, 0.02, 0.23]);
   legs.push({ hip, knee, foot, side, baseFootY: foot.position.y });
 
+  // Arms with vambraces and bronze trim
   const shoulder = new THREE.Group();
-  shoulder.position.set(side * 0.405, 0.19, 0);
+  shoulder.position.set(side * 0.41, 0.18, 0);
   body.add(shoulder);
-  mesh(shoulder, new THREE.CapsuleGeometry(0.105, 0.31, 5, 12), skin, [0, -0.14, 0]);
-  const pauldron = mesh(shoulder, new THREE.SphereGeometry(0.19, 24, 18), bronze, [side * -0.035, 0.035, 0]);
-  pauldron.scale.set(1.12, 0.78, 1.08);
+  mesh(shoulder, new THREE.CapsuleGeometry(0.11, 0.28, 6, 12), obsidianPlate, [0, -0.13, 0]);
 
   const elbow = new THREE.Group();
-  elbow.position.y = -0.29;
+  elbow.position.y = -0.28;
   shoulder.add(elbow);
-  mesh(elbow, new THREE.CapsuleGeometry(0.09, 0.23, 5, 12), skin, [0, -0.11, 0.025]);
-  mesh(elbow, new THREE.CylinderGeometry(0.115, 0.105, 0.17, 16), bronze, [0, -0.12, 0.045], [0, 0, Math.PI / 2]);
-  mesh(elbow, new THREE.TorusGeometry(0.105, 0.012, 7, 18), gold, [0, -0.205, 0.045], [Math.PI / 2, 0, 0]);
-  mesh(elbow, new THREE.SphereGeometry(0.085, 14, 10), skin, [0, -0.235, 0.04]);
+  mesh(elbow, new THREE.CapsuleGeometry(0.095, 0.22, 6, 12), darkSteel, [0, -0.11, 0.02]);
+  mesh(elbow, new THREE.CylinderGeometry(0.115, 0.105, 0.2, 12), darkSteel, [0, -0.11, 0.02]);
+  mesh(elbow, new THREE.TorusGeometry(0.112, 0.014, 8, 20), agedBronze, [0, -0.02, 0.02], [Math.PI / 2, 0, 0]);
+  mesh(elbow, new THREE.TorusGeometry(0.105, 0.014, 8, 20), agedBronze, [0, -0.2, 0.02], [Math.PI / 2, 0, 0]);
+  mesh(elbow, new THREE.SphereGeometry(0.09, 14, 10), obsidianPlate, [0, -0.24, 0.03]);
   arms.push({ shoulder, elbow, side });
 }
 
-const capeGeometry = new THREE.PlaneGeometry(1.08, 1.35, 8, 10);
+// Wide, billowing tattered crimson cape
+const capeGeometry = new THREE.PlaneGeometry(1.38, 1.52, 10, 12);
 const capeBasePositions = Float32Array.from(capeGeometry.attributes.position.array);
 const capePositions = capeGeometry.attributes.position;
 for (let index = 0; index < capePositions.count; index += 1) {
   const x = capePositions.getX(index);
   const y = capePositions.getY(index);
-  capePositions.setZ(index, Math.sin(x * 5 + y * 2.5) * 0.055 + Math.abs(x) * 0.07);
+  const flare = 1 + Math.max(0, (0.76 - y) / 1.52) * 0.35;
+  capePositions.setX(index, x * flare);
+  capePositions.setZ(index, Math.sin(x * 4.5 + y * 2.2) * 0.07 - Math.abs(x) * 0.08);
 }
 capeGeometry.computeVertexNormals();
-const cape = mesh(body, capeGeometry, red, [0, -0.14, -0.34]);
-cape.rotation.x = 0.04;
-for (const side of [-1, 1]) {
-  mesh(body, new THREE.BoxGeometry(0.018, 1.16, 0.018), gold, [side * 0.49, -0.18, -0.275]);
-}
+const cape = mesh(body, capeGeometry, tatteredCapeMat, [0, -0.22, -0.34]);
+cape.rotation.x = 0.14;
 
-// Heavy black shield with gunmetal edging and a crimson war sigil.
+// Large curved Kite Shield with thick bronze rim and 4-pointed bronze star emblem
 export const shieldRig = new THREE.Group();
 shieldRig.position.set(-0.28, 0.04, -0.38);
 shieldRig.rotation.y = Math.PI;
 body.add(shieldRig);
-mesh(shieldRig, new THREE.CylinderGeometry(0.43, 0.43, 0.145, 40), dark, [0, 0, 0], [Math.PI / 2, 0, 0]);
-mesh(shieldRig, new THREE.TorusGeometry(0.415, 0.048, 10, 40), gold, [0, 0, 0.035]);
-mesh(shieldRig, new THREE.TorusGeometry(0.31, 0.018, 8, 32), bronze, [0, 0, 0.075]);
-mesh(shieldRig, new THREE.SphereGeometry(0.145, 24, 18), gold, [0, 0, 0.12]).scale.z = 0.48;
-mesh(shieldRig, new THREE.BoxGeometry(0.045, 0.42, 0.025), gold, [0, 0, 0.145]);
-mesh(shieldRig, new THREE.BoxGeometry(0.42, 0.045, 0.025), gold, [0, 0, 0.145]);
-for (let index = 0; index < 8; index += 1) {
-  const angle = (index / 8) * Math.PI * 2;
-  const stud = mesh(
-    shieldRig,
-    new THREE.SphereGeometry(0.035, 10, 8),
-    gold,
-    [Math.cos(angle) * 0.355, Math.sin(angle) * 0.355, 0.09]
-  );
-  stud.scale.z = 0.55;
+
+function createKiteShieldGeometry(width, height, depth) {
+  const shape = new THREE.Shape();
+  shape.moveTo(0, height * 0.52);
+  shape.bezierCurveTo(width * 0.45, height * 0.5, width * 0.56, height * 0.18, width * 0.48, -height * 0.12);
+  shape.bezierCurveTo(width * 0.38, -height * 0.38, width * 0.14, -height * 0.52, 0, -height * 0.58);
+  shape.bezierCurveTo(-width * 0.14, -height * 0.52, -width * 0.38, -height * 0.38, -width * 0.48, -height * 0.12);
+  shape.bezierCurveTo(-width * 0.56, height * 0.18, -width * 0.45, height * 0.5, 0, height * 0.52);
+
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: true,
+    bevelSegments: 2,
+    steps: 1,
+    bevelSize: 0.025,
+    bevelThickness: 0.025,
+  });
+  // Curve the shield horizontally around the arm
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i += 1) {
+    const x = pos.getX(i);
+    const bend = -Math.pow(x / (width * 0.55), 2) * 0.16;
+    pos.setZ(i, pos.getZ(i) + bend);
+  }
+  geo.computeVertexNormals();
+  return geo;
 }
 
-// A dark war spear with a blood-red steel point.
+mesh(shieldRig, createKiteShieldGeometry(1.06, 1.38, 0.04), agedBronze, [0, -0.02, -0.01]);
+mesh(shieldRig, createKiteShieldGeometry(0.92, 1.22, 0.048), obsidianPlate, [0, -0.02, 0.008]);
+
+// 4-pointed bronze star emblem in the center of the shield
+const starGroup = new THREE.Group();
+starGroup.position.set(0, 0.02, 0.065);
+shieldRig.add(starGroup);
+mesh(starGroup, new THREE.ConeGeometry(0.085, 0.46, 4), agedBronze, [0, 0.2, 0]);
+mesh(starGroup, new THREE.ConeGeometry(0.085, 0.46, 4), agedBronze, [0, -0.2, 0], [Math.PI, 0, 0]);
+mesh(starGroup, new THREE.ConeGeometry(0.075, 0.36, 4), agedBronze, [0.16, 0, 0], [0, 0, -Math.PI / 2]);
+mesh(starGroup, new THREE.ConeGeometry(0.075, 0.36, 4), agedBronze, [-0.16, 0, 0], [0, 0, Math.PI / 2]);
+mesh(starGroup, new THREE.OctahedronGeometry(0.09, 0), obsidianPlate, [0, 0, 0.015]);
+
+// Broad Shadow Greatsword (exported as spearRig/spearTip for seamless combat compatibility)
 export const spearRig = new THREE.Group();
-spearRig.position.set(0.42, 0.15, 0.13);
+spearRig.position.set(0.42, 0.12, 0.15);
 body.add(spearRig);
-const heldShaft = mesh(
-  spearRig,
-  new THREE.CylinderGeometry(0.026, 0.036, 1.52, 10),
-  dark,
-  [0, 0, 0.48],
-  [Math.PI / 2, 0, 0]
-);
-heldShaft.scale.x = 1.02;
-mesh(spearRig, new THREE.CylinderGeometry(0.047, 0.042, 0.15, 10), crimson, [0, 0, 1.12], [Math.PI / 2, 0, 0]);
-mesh(spearRig, new THREE.ConeGeometry(0.095, 0.36, 10), crimson, [0, 0, 1.36], [Math.PI / 2, 0, 0]);
-mesh(spearRig, new THREE.TorusGeometry(0.037, 0.013, 6, 12), gold, [0, 0, 1.12], [Math.PI / 2, 0, 0]);
+
+// Pommel & leather-wrapped grip
+mesh(spearRig, new THREE.OctahedronGeometry(0.055, 0), agedBronze, [0, 0, -0.22]);
+mesh(spearRig, new THREE.CylinderGeometry(0.032, 0.036, 0.34, 10), leatherStrap, [0, 0, -0.04], [Math.PI / 2, 0, 0]);
+// Curved bronze crossguard
+const guard = mesh(spearRig, new THREE.BoxGeometry(0.36, 0.055, 0.075), agedBronze, [0, 0, 0.14]);
+guard.scale.set(1, 1, 1.15);
+mesh(spearRig, new THREE.OctahedronGeometry(0.055, 0), agedBronze, [0, 0, 0.14]);
+// Broad dark-steel double-edged blade with bronze fuller
+mesh(spearRig, new THREE.BoxGeometry(0.14, 0.024, 1.15), bladeSteel, [0, 0, 0.74]);
+mesh(spearRig, new THREE.BoxGeometry(0.036, 0.032, 1.02), agedBronze, [0, 0, 0.68]);
+const tip = mesh(spearRig, new THREE.ConeGeometry(0.098, 0.28, 4), bladeSteel, [0, 0, 1.44], [Math.PI / 2, Math.PI / 4, 0]);
+tip.scale.set(1, 1, 0.22);
+
 export const spearTip = new THREE.Object3D();
-spearTip.position.set(0, 0, 1.54);
+spearTip.position.set(0, 0, 1.56);
 spearRig.add(spearTip);
 
 player.userData = {
@@ -439,19 +467,19 @@ player.userData = {
   animationTime: 0,
   moveBlend: 0,
   twoHandBlend: 1,
-  colliderRadius: 0.54
+  colliderRadius: 0.54,
 };
 player.scale.setScalar(1.1);
 scene.add(player);
 
 export const orbitalGroup = new THREE.Group();
 const orbitalMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0x8e1025,
+  color: 0x9e141f,
   metalness: 0.48,
   roughness: 0.22,
   clearcoat: 0.8,
   emissive: 0x650014,
-  emissiveIntensity: 0.42
+  emissiveIntensity: 0.42,
 });
 export const orbShieldMesh = mesh(
   orbitalGroup,
@@ -462,16 +490,16 @@ export const orbShieldMesh = mesh(
 const orbitalRing = mesh(
   orbitalGroup,
   new THREE.TorusGeometry(0.38, 0.025, 8, 32),
-  gold,
+  agedBronze,
   [1.55, 0.9, 0]
 );
 orbitalRing.rotation.x = Math.PI / 2;
 orbitalGroup.visible = false;
 scene.add(orbitalGroup);
 
-const oneHandSpearPosition = new THREE.Vector3(0.42, 0.15, 0.13);
-const twoHandSpearPosition = new THREE.Vector3(0.02, 0.09, 0.28);
-const shieldGuardPosition = new THREE.Vector3(-0.57, 0.11, 0.22);
+const oneHandSpearPosition = new THREE.Vector3(0.44, 0.08, 0.18);
+const twoHandSpearPosition = new THREE.Vector3(0.16, 0.04, 0.26);
+const shieldGuardPosition = new THREE.Vector3(-0.56, 0.06, 0.24);
 const shieldStowPosition = new THREE.Vector3(-0.28, 0.04, -0.38);
 
 export function triggerPlayerAttack(mode = 'throw') {
@@ -479,10 +507,6 @@ export function triggerPlayerAttack(mode = 'throw') {
   data.attackMode = mode;
   data.attackDuration = mode === 'thrust' ? 0.68 : 0.88;
   data.attackTimer = data.attackDuration;
-  if (data.gltfAttackAction) {
-    data.gltfAttackAction.reset().play();
-    data.gltfAttackActive = true;
-  }
 }
 
 export function triggerPlayerHit() {
@@ -493,9 +517,6 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
   const data = player.userData;
   data.animationTime += dt;
   data.moveBlend = THREE.MathUtils.damp(data.moveBlend, moving ? 1 : 0, 9, dt);
-  data.gltfRunAction?.setEffectiveWeight(data.moveBlend);
-  data.gltfRunAction?.setEffectiveTimeScale(0.82 + data.moveBlend * 0.48);
-  data.gltfMixer?.update(dt);
   data.twoHandBlend = THREE.MathUtils.damp(data.twoHandBlend, oneHanded ? 0 : 1, 13, dt);
 
   const gaitSpeed = 4.8 + data.moveBlend * 6.4;
@@ -522,8 +543,7 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
     arm.elbow.rotation.x = -0.16 - Math.max(0, -swing) * 0.22 * data.moveBlend;
   }
 
-  data.body.position.y = 0.88 + Math.abs(stride) * 0.028 * data.moveBlend
-    + breath * 0.01 * idleWeight;
+  data.body.position.y = 0.88 + Math.abs(stride) * 0.028 * data.moveBlend + breath * 0.01 * idleWeight;
   data.body.position.z = 0;
   data.body.rotation.x = -0.055 * data.moveBlend + breath * 0.014 * idleWeight;
   data.body.rotation.y = stride * 0.065 * data.moveBlend;
@@ -532,24 +552,21 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
   data.head.rotation.y = stride * 0.045 * data.moveBlend;
   data.head.rotation.z = stride * 0.009 * data.moveBlend;
 
-  data.cape.rotation.x = 0.04 + data.moveBlend * 0.13
-    + Math.sin(data.animationTime * 4.1) * 0.025;
-  data.cape.rotation.z = -stride * 0.075 * data.moveBlend;
+  data.cape.rotation.x = 0.14 + data.moveBlend * 0.22 + Math.sin(data.animationTime * 4.1) * 0.03;
+  data.cape.rotation.z = -stride * 0.085 * data.moveBlend;
   const capeAttribute = data.capeGeometry.attributes.position;
   for (let vertex = 0; vertex < capeAttribute.count; vertex += 1) {
     const offset = vertex * 3;
     const x = data.capeBasePositions[offset];
     const y = data.capeBasePositions[offset + 1];
-    const freeEdge = THREE.MathUtils.clamp((0.675 - y) / 1.35, 0, 1);
-    const wave = Math.sin(data.animationTime * 5.2 + x * 5.5 + y * 2.8);
-    const flutter = freeEdge * (0.025 + data.moveBlend * 0.07);
+    const freeEdge = THREE.MathUtils.clamp((0.76 - y) / 1.52, 0, 1);
+    const wave = Math.sin(data.animationTime * 5.2 + x * 4.8 + y * 2.5);
+    const flutter = freeEdge * (0.035 + data.moveBlend * 0.09);
     capeAttribute.setZ(vertex, data.capeBasePositions[offset + 2] + wave * flutter);
   }
   capeAttribute.needsUpdate = true;
-  const crestSway = -0.08 + Math.sin(data.animationTime * 3.1) * 0.035
-    - stride * 0.045 * data.moveBlend;
-  data.crest.rotation.z = crestSway;
-  if (data.gltfCrest) data.gltfCrest.rotation.z = crestSway * 0.7;
+
+  data.crest.rotation.z = Math.sin(data.animationTime * 3.1) * 0.03 - stride * 0.04 * data.moveBlend;
 
   spearRig.position.lerpVectors(oneHandSpearPosition, twoHandSpearPosition, twoHands);
   data.shieldRig.position.lerpVectors(shieldGuardPosition, shieldStowPosition, twoHands);
@@ -569,21 +586,12 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
 
   data.attackTimer = Math.max(0, data.attackTimer - dt);
   const attacking = data.attackTimer > 0;
-  if (!attacking && data.gltfAttackActive) {
-    data.gltfAttackAction?.fadeOut(0.12);
-    data.gltfAttackActive = false;
-  }
   const progress = attacking ? 1 - data.attackTimer / data.attackDuration : 0;
-  const anticipation = attacking
-    ? 1 - THREE.MathUtils.smoothstep(progress, 0.08, 0.34)
-    : 0;
+  const anticipation = attacking ? 1 - THREE.MathUtils.smoothstep(progress, 0.08, 0.34) : 0;
   const strike = attacking
-    ? THREE.MathUtils.smoothstep(progress, 0.27, 0.48)
-      * (1 - THREE.MathUtils.smoothstep(progress, 0.63, 0.86))
+    ? THREE.MathUtils.smoothstep(progress, 0.27, 0.48) - (1 - THREE.MathUtils.smoothstep(progress, 0.63, 0.86))
     : 0;
-  const recovery = attacking
-    ? THREE.MathUtils.smoothstep(progress, 0.66, 1)
-    : 0;
+  const recovery = attacking ? THREE.MathUtils.smoothstep(progress, 0.66, 1) : 0;
 
   if (attacking && data.attackMode === 'thrust') {
     spearRig.rotation.x = -0.22 * anticipation + 0.1 * strike + 0.06 * recovery;
@@ -614,8 +622,7 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
     data.body.rotation.y += anticipation * 0.045 - strike * 0.025;
     data.body.rotation.z += anticipation * 0.1 - strike * 0.045;
     for (const leg of data.legs) {
-      leg.hip.rotation.x += anticipation * (leg.side > 0 ? -0.18 : 0.22)
-        + strike * (leg.side > 0 ? 0.12 : -0.08);
+      leg.hip.rotation.x += anticipation * (leg.side > 0 ? -0.18 : 0.22) + strike * (leg.side > 0 ? 0.12 : -0.08);
       leg.knee.rotation.x += anticipation * (leg.side > 0 ? 0.22 : 0.04);
     }
     data.shieldRig.rotation.x -= anticipation * 0.1 * oneHand;
@@ -638,13 +645,11 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
     }
   }
 
-  data.shadow.material.opacity = 0.42 + idleWeight * 0.025
-    + Math.abs(stride) * data.moveBlend * 0.025;
+  data.shadow.material.opacity = 0.42 + idleWeight * 0.025 + Math.abs(stride) * data.moveBlend * 0.025;
 
-  bronze.emissive.setHex(state.upgradeAuraTimer > 0 ? 0x30000a : 0x000000);
-  gold.emissiveIntensity = state.upgradeAuraTimer > 0 ? 0.18 : 0.035;
-  crimson.emissiveIntensity = state.upgradeAuraTimer > 0 ? 0.72 : 0.28;
+  darkSteel.emissive.setHex(state.upgradeAuraTimer > 0 ? 0x30000a : 0x000000);
+  agedBronze.emissiveIntensity = state.upgradeAuraTimer > 0 ? 0.42 : 0.15;
+  crimsonCloth.emissive.setHex(state.upgradeAuraTimer > 0 ? 0x3a0008 : 0x000000);
 }
 
-// The procedural Myrmidon is assembled synchronously; signal readiness after its rig and animation data exist.
 window.__myrmidonModelLoaded = true;
