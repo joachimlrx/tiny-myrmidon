@@ -13,16 +13,16 @@ A lightweight 3D Greek survival arena game built with Three.js, backed by a hard
   - Olympian blessings modal on level-up (built with XSS-safe DOM APIs) and real-time HP/XP HUD.
 - **Hardened Leaderboard API (`api/`)**:
   - High-performance REST service written in Rust with Axum and Tokio.
-  - Thread-safe in-memory state (`Arc<RwLock<Vec<ScoreEntry>>>`) with automatic top-50 sorting and truncation.
-  - **AppSec protections**: wave-plausibility anti-cheat bounds, Unicode character-count validation, control-character filtering, strict origin/method CORS policy, and sliding-window rate limiting (`429 Too Many Requests`).
+  - Thread-safe leaderboard with atomic JSON-file persistence on a Kubernetes `ReadWriteOnce` PVC (single API replica), automatic top-50 sorting and truncation.
+  - **AppSec protections**: wave-plausibility abuse checks (not server-authoritative anti-cheat), Unicode character-count validation, control-character filtering, strict origin/method CORS policy, trusted-proxy-aware IP extraction, and bounded sliding-window rate limiting (`429 Too Many Requests`).
   - Structured JSON logging via `tracing` and graceful shutdown (`SIGINT`/`SIGTERM`).
 - **Cloud-Native & Hardened Deployment (`k8s/`)**:
   - Unified Kubernetes manifest ([k8s/app.yaml](k8s/app.yaml)) with Deployments, Services, and Traefik Ingress on port `8080`.
-  - Minimalist Alpine container images (< 20 MB footprint constraint).
+  - Alpine container images with enforced uncompressed size budgets (API 20 MiB, game 25 MiB).
   - **Container hardening**: non-root execution (`UID 10001`), `readOnlyRootFilesystem: true`, `allowPrivilegeEscalation: false`, `capabilities.drop: ["ALL"]`, and explicit CPU/memory limits.
 - **DevSecOps & CI/CD**:
-  - 20 automated tests (8 unit tests + 12 HTTP integration tests covering anti-cheat, CORS, rate limiting, and leaderboard bounds).
-  - 3-job GitHub Actions CI pipeline ([.github/workflows/ci.yml](.github/workflows/ci.yml)) enforcing formatting, Clippy, RustSec CVE auditing (`cargo audit`), Kubernetes security policies, and frontend XSS checks.
+  - 32 automated Rust tests (16 unit tests + 16 HTTP integration tests covering validation, persistence, CORS, trusted proxy parsing, rate limiting, and leaderboard bounds).
+  - 4-job GitHub Actions CI pipeline ([.github/workflows/ci.yml](.github/workflows/ci.yml)) enforcing formatting, Clippy, RustSec CVE auditing (`cargo audit`), Kubernetes security policies, Docker size budgets, frontend syntax/XSS checks, and Playwright browser smoke tests.
   - Streamlined developer orchestration via a root [Makefile](Makefile).
 
 ---
@@ -49,6 +49,7 @@ For complete technical specifications, see [docs/architecture.md](docs/architect
 - **k3d** (v5.x+)
 - **kubectl**
 - **Rust & Cargo** (1.80+)
+- **Node.js** (22+) for local frontend syntax checks
 - **Make**
 
 ### 1-Command Local Setup & Deployment
@@ -95,8 +96,8 @@ This single command will:
 | Command | Description |
 | :--- | :--- |
 | `make help` | Display all available targets with explanations |
-| `make check` | Run formatting check, Clippy linter (`-D warnings`), full 20-test suite, and Kubernetes manifest validation |
-| `make test` | Execute unit and in-memory HTTP integration tests |
+| `make check` | Run Rust formatting, Clippy, Rust tests, frontend syntax and Kubernetes manifest validation |
+| `make test` | Execute unit and HTTP integration tests |
 | `make fmt` | Automatically format all Rust source files |
 | `make build` | Build both minimal Alpine Docker images locally |
 | `make deploy` | Build, import images, deploy manifests, restart pods, and verify rollout status |
@@ -120,7 +121,7 @@ tiny-myrmidon/
 │   │   ├── main.rs           # Server entrypoint & graceful shutdown
 │   │   ├── lib.rs            # Router, CORS layer & sliding-window rate limiter
 │   │   ├── handlers.rs       # HTTP route handlers with structured tracing
-│   │   └── models.rs         # Score models & anti-cheat bounds validation
+│   │   └── models.rs         # Score models & score plausibility validation
 │   ├── tests/
 │   │   └── api_tests.rs      # In-memory HTTP integration & security tests
 │   ├── Cargo.toml            # Rust dependencies & release profile
@@ -137,7 +138,9 @@ tiny-myrmidon/
 │   ├── architecture.md       # In-depth architectural & system design
 │   └── api.md                # REST API specification & curl examples
 ├── scripts/
-│   └── tunnel.sh             # Cloudflare tunnel launcher with auto QR code for mobile
+│   └── tunnel.sh             # Version-pinned, checksum-verified Cloudflare tunnel launcher
+├── tests/
+│   └── browser-smoke.mjs     # Playwright title screen, start, pause and resume smoke test
 ├── Makefile                  # Developer task automation
 ├── AGENTS.md                 # Universal AI agent instructions & coding rules
 └── README.md                 # Project documentation
@@ -151,16 +154,22 @@ For full request/response schemas and curl examples, refer to [docs/api.md](docs
 
 - `GET /api/health` — Service readiness probe.
 - `GET /api/scores` — Returns top 50 scores sorted descending.
-- `POST /api/scores` — Submits a new score `{ "player_name": string, "score": number, "wave": number }` (validated against anti-cheat bounds and rate-limited to 10 submissions per 10 seconds).
+- `POST /api/scores` — Submits a new score `{ "player_name": string, "score": number, "wave": number }` (validated against plausibility bounds and rate-limited to 10 submissions per 10 seconds). Scores remain client-reported and are not tamper-proof.
 
 ---
 
 ## Quality Assurance & DevSecOps CI/CD
 
-Continuous Integration is enforced on every commit and pull request via 3 parallel GitHub Actions jobs:
-1. **Rust Code Quality & Tests:** `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo test --all` (20 unit & HTTP integration tests).
+Continuous Integration is enforced on every commit and pull request via 4 parallel GitHub Actions jobs:
+1. **Rust Code Quality & Tests:** `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo test --all` (32 unit and HTTP integration tests).
 2. **DevSecOps Security Audit:**
    - `cargo audit` scanning `api/Cargo.lock` against the RustSec advisory database.
    - Automated policy enforcement verifying `runAsNonRoot`, `readOnlyRootFilesystem`, `allowPrivilegeEscalation: false`, `capabilities.drop: ["ALL"]`, and resource limits in `k8s/app.yaml`.
    - Static frontend check preventing unescaped `innerHTML` interpolations.
-3. **Docker Image & Manifest Checks:** Multi-stage Alpine builds, image size inspection, `docker inspect` verification of non-root user `10001`, and YAML schema validation.
+3. **Docker Image & Manifest Checks:** Multi-stage Alpine builds, enforced uncompressed image size budgets (API 20 MiB, game 25 MiB), `docker inspect` verification of non-root user `10001`, and YAML schema validation.
+4. **Browser Gameplay Smoke Tests:** Playwright loads the game, enters the arena, then pauses and resumes the run in Chromium.
+
+
+### Optional read-only load probe
+
+With the application running, execute `node scripts/load-test.mjs`. Set `LOAD_TEST_URL`, `LOAD_TEST_REQUESTS`, and `LOAD_TEST_CONCURRENCY` to change the target, request count, and concurrency. The probe only reads the leaderboard and does not write scores.
