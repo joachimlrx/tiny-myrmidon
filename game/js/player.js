@@ -312,7 +312,12 @@ gltfLoader.load(
     const attackAction = attackClip ? mixer.clipAction(attackClip) : null;
     if (attackAction) {
       attackAction.setLoop(THREE.LoopOnce, 1);
+      attackAction.setDuration(0.82);
       attackAction.clampWhenFinished = true;
+      if (player.userData.attackTimer > 0) {
+        attackAction.reset().play();
+        player.userData.gltfAttackActive = true;
+      }
     }
 
     const capeAction = capeClip ? mixer.clipAction(capeClip) : null;
@@ -372,6 +377,10 @@ export function triggerPlayerAttack(mode = 'throw') {
   data.attackMode = mode;
   data.attackDuration = mode === 'thrust' ? 0.68 : 0.88;
   data.attackTimer = data.attackDuration;
+  if (data.gltfAttackAction) {
+    data.gltfAttackAction.reset().play();
+    data.gltfAttackActive = true;
+  }
 }
 
 export function triggerPlayerHit() {
@@ -457,8 +466,9 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
 
   data.attackTimer = Math.max(0, data.attackTimer - dt);
   const attacking = data.attackTimer > 0;
-  if (attacking && data.gltfAttackAction && !data.gltfAttackAction.isRunning()) {
-    data.gltfAttackAction.reset().play();
+  if (!attacking && data.gltfAttackActive) {
+    data.gltfAttackAction?.fadeOut(0.12);
+    data.gltfAttackActive = false;
   }
   const progress = attacking ? 1 - data.attackTimer / data.attackDuration : 0;
   const anticipation = attacking
