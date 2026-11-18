@@ -38,6 +38,7 @@ import {
 } from './input.js';
 import { initLeaderboardSubmit } from './leaderboard.js';
 import { createCameraControls } from './camera-controls.js';
+import { spawnFootstepDust, updateParticleEffects } from './particles.js';
 
 const MAX_PLAYER_RADIUS = ARENA_RADIUS - 1;
 const ORBITAL_ROTATION_SPEED = 3.6;
@@ -47,6 +48,7 @@ const movementInput = new THREE.Vector2();
 const desiredPlayerVelocity = new THREE.Vector2();
 const playerVelocity = new THREE.Vector2();
 const cameraTarget = new THREE.Vector3();
+const footstepPosition = new THREE.Vector3();
 
 // Separate acceleration and braking make the hero responsive without feeling weightless.
 const PLAYER_ACCELERATION = 22;
@@ -270,8 +272,17 @@ function updateOrbitalShield(deltaTime) {
 /** Update all gameplay systems for one active frame. */
 function updateGame(deltaTime) {
   const isMoving = updatePlayerMovement(deltaTime);
+  const previousWalkPhase = player.userData.walkPhase;
 
   updatePlayerAnimation(deltaTime, isMoving, state, Boolean(keys.shift));
+
+  const currentWalkPhase = player.userData.walkPhase;
+  if (isMoving && Math.floor(previousWalkPhase / Math.PI) !== Math.floor(currentWalkPhase / Math.PI)) {
+    const step = player.userData.legs[Math.floor(currentWalkPhase / Math.PI) % player.userData.legs.length];
+    step.foot.getWorldPosition(footstepPosition);
+    footstepPosition.y = 0.035;
+    spawnFootstepDust(scene, footstepPosition);
+  }
   state.upgradeAuraTimer = Math.max(0, state.upgradeAuraTimer - deltaTime);
 
   updateEnemySpawning(deltaTime);
@@ -292,6 +303,7 @@ function updateGame(deltaTime) {
   );
 
   updateEnemyEffects(deltaTime, scene);
+  updateParticleEffects(scene, deltaTime);
   refreshHud();
 
   if (state.level !== lastAnnouncedWave) {
