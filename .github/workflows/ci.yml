@@ -116,3 +116,11 @@ jobs:
       - name: Validate Kubernetes manifests
         run: |
           python3 -c "import yaml; docs = list(yaml.safe_load_all(open('k8s/app.yaml'))); assert docs and all('apiVersion' in d and 'kind' in d and 'name' in d.get('metadata', {}) for d in docs)"
+
+      - name: Validate frontend JavaScript syntax
+        shell: bash
+        run: |
+          for script in game/js/*.js; do
+            echo "Checking $script"
+            node --input-type=module --check < "$script"
+          done
