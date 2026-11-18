@@ -1,50 +1,110 @@
+/* Shared page styles and default controls. */
 * {
   box-sizing: border-box;
   -webkit-touch-callout: none;
 }
 
+html,
 body {
+  width: 100%;
+  height: 100%;
   margin: 0;
+}
+
+body {
   overflow: hidden;
-  background: #1c1917;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  color: #fef3c7;
+  background: #b9d7e7;
+  color: #433321;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  text-rendering: optimizeLegibility;
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
 }
 
+canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  cursor: grab;
+}
+
+body.camera-dragging,
+body.camera-dragging * {
+  cursor: grabbing !important;
+}
+
+body.menu-active #hud,
+body.menu-active #pause-btn,
+body.menu-active #control-hint {
+  display: none;
+}
+
+body.menu-active #start-screen {
+  display: grid;
+}
+
+body:not(.menu-active) #start-screen {
+  display: none;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.08),
+    transparent 28%,
+    transparent 78%,
+    rgba(103, 75, 42, 0.08)
+  );
+}
+
 button {
+  margin-top: 12px;
   padding: 12px 20px;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #a87545, #70482f);
+  color: #fff3df;
   font-size: 15px;
   font-weight: 700;
-  border: none;
-  border-radius: 8px;
-  background: #d97706;
-  color: #fff;
   cursor: pointer;
-  margin-top: 12px;
-  transition: background 0.15s ease;
   touch-action: manipulation;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 
 button:hover,
 button:active {
-  background: #b45309;
+  background: linear-gradient(135deg, #ce985c, #8e5d3a);
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #9d6b35;
+  outline-offset: 3px;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 input[type="text"] {
-  padding: 11px 14px;
-  font-size: 15px;
-  border-radius: 8px;
-  border: 1px solid #78350f;
-  background: #292524;
-  color: #fef3c7;
-  outline: none;
   width: 220px;
   margin-right: 8px;
+  padding: 11px 14px;
+  border: 1px solid #b28a5c;
+  border-radius: 8px;
+  background: #fff8e9;
+  color: #433321;
+  font: inherit;
 }
 
 input[type="text"]:focus {
-  border-color: #f59e0b;
+  border-color: #9d6b35;
 }

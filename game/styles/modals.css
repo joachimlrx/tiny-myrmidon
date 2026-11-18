@@ -1,69 +1,115 @@
-#upgrade-modal,
-#gameover-modal {
-  display: none;
+/* Pause, upgrade and game-over dialogs. */
+.modal-overlay,
+#pause-modal {
   position: fixed;
   inset: 0;
-  background: rgba(12, 10, 9, 0.88);
+  z-index: 20;
+  display: none;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  z-index: 20;
   padding: 16px;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(15, 20, 28, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.modal-overlay.is-visible,
+#pause-modal.is-visible {
+  display: flex;
 }
 
 .modal-box {
-  background: #1c1917;
-  border: 2px solid #b45309;
-  border-radius: 14px;
-  padding: 22px 24px;
-  text-align: center;
-  max-width: 520px;
   width: 100%;
+  max-width: 520px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  padding: 22px 24px;
+  border: 1px solid rgba(165, 119, 58, 0.72);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(49, 57, 69, 0.98), rgba(25, 31, 41, 0.98));
+  color: #f4e8d6;
+  text-align: center;
+  box-shadow: 0 26px 90px rgba(0, 0, 0, 0.58), inset 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.modal-title {
+  margin: 0;
+  color: #f6e4c8;
+  font-size: 22px;
+}
+
+.modal-kicker {
+  color: #e0bd86;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+}
+
+.final-score {
+  margin: 8px 0;
+  font-size: 14px;
 }
 
 .cards {
   display: flex;
-  gap: 14px;
-  margin-top: 18px;
+  max-height: 70vh;
   flex-wrap: wrap;
   justify-content: center;
-  max-height: 70vh;
+  gap: 14px;
+  margin-top: 18px;
   overflow-y: auto;
 }
 
-.card {
-  background: #292524;
-  border: 2px solid #f59e0b;
-  border-radius: 12px;
-  padding: 16px;
+.upgrade-card {
+  display: flex;
   width: 180px;
-  cursor: pointer;
-  text-align: center;
-  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-}
-
-.card:hover,
-.card:active {
-  transform: translateY(-3px);
-  background: #78350f;
-  border-color: #fbbf24;
-}
-
-.card h3 {
-  margin: 0 0 6px 0;
-  font-size: 15px;
-  color: #fde68a;
-}
-
-.card p {
+  min-height: 170px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
   margin: 0;
+  padding: 18px;
+  border: 1px solid rgba(192, 156, 103, 0.66);
+  border-radius: 10px;
+  background: linear-gradient(145deg, #45566b, #202c3d);
+  color: #f4e8d6;
+  text-align: left;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.25);
+}
+
+.upgrade-card:hover,
+.upgrade-card:active {
+  border-color: #f0cf91;
+  background: linear-gradient(145deg, #586a7e, #29384c);
+  transform: translateY(-3px);
+}
+
+.upgrade-index {
+  color: #e0bd86;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+}
+
+.upgrade-tag {
+  color: #e0bd86;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+}
+
+.upgrade-card strong {
+  font-size: 15px;
+}
+
+.upgrade-card span:last-child {
+  color: #d4c5b2;
   font-size: 12px;
-  color: #e7e5e4;
+  line-height: 1.5;
+}
+
+.leaderboard-title {
+  margin: 14px 0 4px;
+  color: #e7c28b;
+  font-size: 15px;
 }
 
 .leaderboard-table {
@@ -75,21 +121,53 @@
 }
 
 .leaderboard-table th {
-  border-bottom: 1px solid #78350f;
   padding: 6px;
-  color: #f59e0b;
+  border-bottom: 1px solid rgba(224, 189, 134, 0.45);
+  color: #e7c28b;
 }
 
 .leaderboard-table td {
   padding: 6px;
-  border-bottom: 1px solid #292524;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.table-empty {
+  text-align: center;
+}
+
+.leader-name {
+  color: #f6e4c8;
+}
+
+.leaderboard-error {
+  color: #e2b2a6;
+  text-align: center;
 }
 
 .form-row {
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  gap: 8px;
   margin-top: 14px;
+}
+
+.submit-status {
+  min-height: 16px;
+  margin: 4px 0;
+  font-size: 12px;
+}
+
+#submit-status[data-state="error"] {
+  color: #ff9288;
+}
+
+#submit-status[data-state="success"] {
+  color: #9ad6a2;
+}
+
+#restart-btn {
+  margin-top: 16px;
 }
 
 @media (max-width: 640px) {
@@ -97,14 +175,20 @@
     padding: 16px 14px;
   }
 
-  .card {
+  .cards {
+    width: min(88vw, 340px);
+    max-height: 72vh;
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  .upgrade-card {
     width: 100%;
-    max-width: 280px;
+    min-height: 0;
   }
 
   .form-row {
     flex-direction: column;
-    gap: 8px;
   }
 
   input[type="text"] {
@@ -112,7 +196,7 @@
     margin-right: 0;
   }
 
-  button {
+  button:not(.upgrade-card) {
     width: 100%;
   }
 }
