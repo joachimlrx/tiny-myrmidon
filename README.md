@@ -18,10 +18,10 @@ A lightweight 3D Greek survival arena game built with Three.js, backed by a hard
   - Structured JSON logging via `tracing` and graceful shutdown (`SIGINT`/`SIGTERM`).
 - **Cloud-Native & Hardened Deployment (`k8s/`)**:
   - Unified Kubernetes manifest ([k8s/app.yaml](k8s/app.yaml)) with Deployments, Services, and Traefik Ingress on port `8080`.
-  - Minimalist Alpine container images (< 20 MB footprint constraint).
+  - Alpine container images with enforced uncompressed size budgets (API 20 MiB, game 25 MiB).
   - **Container hardening**: non-root execution (`UID 10001`), `readOnlyRootFilesystem: true`, `allowPrivilegeEscalation: false`, `capabilities.drop: ["ALL"]`, and explicit CPU/memory limits.
 - **DevSecOps & CI/CD**:
-  - 29 automated Rust tests (15 unit tests + 14 HTTP integration tests covering validation, persistence, CORS, trusted proxy parsing, rate limiting, and leaderboard bounds).
+  - 32 automated Rust tests (16 unit tests + 16 HTTP integration tests covering validation, persistence, CORS, trusted proxy parsing, rate limiting, and leaderboard bounds).
   - 4-job GitHub Actions CI pipeline ([.github/workflows/ci.yml](.github/workflows/ci.yml)) enforcing formatting, Clippy, RustSec CVE auditing (`cargo audit`), Kubernetes security policies, Docker size budgets, frontend syntax/XSS checks, and Playwright browser smoke tests.
   - Streamlined developer orchestration via a root [Makefile](Makefile).
 
@@ -161,7 +161,7 @@ For full request/response schemas and curl examples, refer to [docs/api.md](docs
 ## Quality Assurance & DevSecOps CI/CD
 
 Continuous Integration is enforced on every commit and pull request via 4 parallel GitHub Actions jobs:
-1. **Rust Code Quality & Tests:** `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo test --all` (20 unit & HTTP integration tests).
+1. **Rust Code Quality & Tests:** `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo test --all` (32 unit and HTTP integration tests).
 2. **DevSecOps Security Audit:**
    - `cargo audit` scanning `api/Cargo.lock` against the RustSec advisory database.
    - Automated policy enforcement verifying `runAsNonRoot`, `readOnlyRootFilesystem`, `allowPrivilegeEscalation: false`, `capabilities.drop: ["ALL"]`, and resource limits in `k8s/app.yaml`.

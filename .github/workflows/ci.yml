@@ -148,6 +148,20 @@ jobs:
             node --input-type=module --check < "$script"
           done
 
+      - name: Generate API image SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: tiny-myrmidon-api:ci
+          format: spdx-json
+          artifact-name: tiny-myrmidon-api-sbom
+
+      - name: Generate Game image SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: tiny-myrmidon-game:ci
+          format: spdx-json
+          artifact-name: tiny-myrmidon-game-sbom
+
 
   browser-smoke:
     name: Browser Gameplay Smoke Tests
