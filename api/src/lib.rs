@@ -205,10 +205,7 @@ mod rate_limit_tests {
         {
             let mut tracked = state.submission_timestamps.lock().await;
             for index in 0..MAX_TRACKED_IPS {
-                tracked.insert(
-                    format!("192.0.2.{index}"),
-                    VecDeque::from([Instant::now()]),
-                );
+                tracked.insert(format!("192.0.2.{index}"), VecDeque::from([Instant::now()]));
             }
         }
 
@@ -225,10 +222,7 @@ mod rate_limit_tests {
         {
             let mut tracked = state.submission_timestamps.lock().await;
             for index in 0..MAX_TRACKED_IPS {
-                tracked.insert(
-                    format!("192.0.2.{index}"),
-                    VecDeque::from([Instant::now()]),
-                );
+                tracked.insert(format!("192.0.2.{index}"), VecDeque::from([Instant::now()]));
             }
         }
 

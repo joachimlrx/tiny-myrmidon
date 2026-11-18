@@ -358,7 +358,6 @@ async fn rate_limit_is_isolated_per_client_ip_and_security_headers_are_present()
     assert_eq!(legit_res.status(), StatusCode::CREATED);
 }
 
-
 #[tokio::test]
 async fn submitted_score_survives_an_api_state_restart() {
     use std::time::{SystemTime, UNIX_EPOCH};

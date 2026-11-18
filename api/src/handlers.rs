@@ -72,10 +72,13 @@ pub async fn add_score(
     updated_scores.sort_by(|a, b| b.score.cmp(&a.score).then_with(|| b.wave.cmp(&a.wave)));
     updated_scores.truncate(MAX_LEADERBOARD_ENTRIES);
 
-    state.persist_scores(&updated_scores).await.map_err(|error| {
-        tracing::error!(error = %error, "Failed to persist leaderboard");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    state
+        .persist_scores(&updated_scores)
+        .await
+        .map_err(|error| {
+            tracing::error!(error = %error, "Failed to persist leaderboard");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
     *scores = updated_scores;
 
     tracing::info!(
