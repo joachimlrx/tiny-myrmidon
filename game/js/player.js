@@ -35,7 +35,7 @@ function makeClothTexture() {
 }
 
 const bronze = new THREE.MeshPhysicalMaterial({
-  color: 0x171b22,
+  color: 0x0d121b,
   metalness: 0.72,
   roughness: 0.42,
   clearcoat: 0.2,
@@ -43,7 +43,7 @@ const bronze = new THREE.MeshPhysicalMaterial({
   envMapIntensity: 0.68
 });
 const gold = new THREE.MeshPhysicalMaterial({
-  color: 0x555d69,
+  color: 0x343d49,
   metalness: 0.82,
   roughness: 0.36,
   clearcoat: 0.24,
@@ -239,6 +239,92 @@ for (const side of [-1, 1]) {
     mesh(body, new THREE.BoxGeometry(0.025, 0.19, 0.018), crimson,
       [side * (0.17 + row * 0.025), -0.49 - row * 0.12, 0.24]);
   }
+}
+
+
+// Additional silhouette pass: layered black-steel armor, bevel-like trim and war trophies.
+const edgeSteel = new THREE.MeshStandardMaterial({
+  color: 0x8993a1, metalness: 0.88, roughness: 0.29
+});
+const deepSteel = new THREE.MeshStandardMaterial({
+  color: 0x090d14, metalness: 0.78, roughness: 0.3
+});
+const leather = new THREE.MeshStandardMaterial({
+  color: 0x16070d, metalness: 0.18, roughness: 0.88
+});
+
+// Angular brow and cheek guards make the visor read as a forged, hostile mask.
+mesh(head, new THREE.BoxGeometry(0.34, 0.055, 0.105), deepSteel,
+  [0, 0.055, 0.285], [0.12, 0, 0]);
+for (const side of [-1, 1]) {
+  const cheek = mesh(head, new THREE.ConeGeometry(0.105, 0.27, 5), bronze,
+    [side * 0.19, -0.19, 0.205], [0.12, 0, side * -0.72]);
+  cheek.scale.set(0.78, 1.2, 0.72);
+  mesh(head, new THREE.BoxGeometry(0.075, 0.24, 0.11), deepSteel,
+    [side * 0.105, -0.12, 0.285], [0.12, 0, side * 0.12]);
+}
+// Crown ridge and swept-back horns give the helmet a stronger, readable outline.
+mesh(head, new THREE.ConeGeometry(0.075, 0.32, 6), edgeSteel,
+  [0, 0.34, -0.13], [Math.PI * 0.82, 0, 0]);
+for (const side of [-1, 1]) {
+  const horn = mesh(head, new THREE.ConeGeometry(0.075, 0.48, 6), deepSteel,
+    [side * 0.205, 0.28, -0.045], [0, 0, side * -0.72]);
+  horn.rotation.x = -0.28;
+  mesh(head, new THREE.ConeGeometry(0.035, 0.25, 5), crimson,
+    [side * 0.22, 0.34, 0.015], [0, 0, side * -0.7]);
+}
+
+// Raised breastplate ribs, segmented abdominal plates and riveted waist harness.
+for (const side of [-1, 1]) {
+  mesh(body, new THREE.CapsuleGeometry(0.035, 0.25, 5, 10), edgeSteel,
+    [side * 0.19, 0.12, 0.205], [0, 0, side * -0.23]);
+  for (let row = 0; row < 3; row += 1) {
+    const plate = mesh(body, new THREE.BoxGeometry(0.17, 0.075, 0.035), deepSteel,
+      [side * 0.085, -0.12 - row * 0.095, 0.205], [0.04, 0, side * 0.035]);
+    plate.scale.x = 1 - row * 0.12;
+    mesh(body, new THREE.SphereGeometry(0.018, 8, 6), edgeSteel,
+      [side * 0.14, -0.12 - row * 0.095, 0.23]);
+  }
+  // Shoulder rim and a second overlapping blade on each pauldron.
+  mesh(body, new THREE.TorusGeometry(0.19, 0.018, 7, 24, Math.PI),
+    edgeSteel, [side * 0.405, 0.205, 0.045], [0, 0, side * 0.1]);
+  const blade = mesh(body, new THREE.ConeGeometry(0.07, 0.31, 5), deepSteel,
+    [side * 0.49, 0.29, 0.11], [0, 0, side * -0.62]);
+  blade.scale.set(0.85, 1.15, 0.8);
+}
+// Heavy forearm bracers and articulated knuckle plates, attached to the moving arm rigs.
+for (const side of [-1, 1]) {
+  const bracer = mesh(body, new THREE.CylinderGeometry(0.105, 0.13, 0.25, 8),
+    deepSteel, [side * 0.405, -0.27, 0.07], [0, 0, Math.PI / 2]);
+  bracer.scale.set(1, 1, 1.05);
+  mesh(body, new THREE.BoxGeometry(0.13, 0.11, 0.12), bronze,
+    [side * 0.405, -0.405, 0.105], [0.08, 0, side * 0.12]);
+  for (let finger = 0; finger < 3; finger += 1) {
+    mesh(body, new THREE.BoxGeometry(0.035, 0.085, 0.055), edgeSteel,
+      [side * (0.35 + finger * 0.055), -0.46, 0.16], [0.12, 0, 0]);
+  }
+}
+// Layered greaves, shin ridges and pointed sabatons strengthen the lower silhouette.
+for (const side of [-1, 1]) {
+  const shin = mesh(body, new THREE.CylinderGeometry(0.095, 0.125, 0.31, 8),
+    bronze, [side * 0.19, -1.19, 0.055], [0.08, 0, 0]);
+  shin.scale.set(1, 1, 0.72);
+  mesh(body, new THREE.ConeGeometry(0.07, 0.24, 5), deepSteel,
+    [side * 0.19, -1.18, 0.145], [Math.PI, 0, 0]);
+  mesh(body, new THREE.BoxGeometry(0.14, 0.035, 0.035), edgeSteel,
+    [side * 0.19, -1.05, 0.13]);
+  mesh(body, new THREE.ConeGeometry(0.055, 0.18, 5), deepSteel,
+    [side * 0.19, -1.36, 0.28], [Math.PI / 2, 0, 0]);
+}
+// A riveted belt clasp and hanging crimson war-tags add small-scale visual richness.
+mesh(body, new THREE.BoxGeometry(0.15, 0.16, 0.055), deepSteel, [0, -0.45, 0.22]);
+mesh(body, new THREE.ConeGeometry(0.075, 0.12, 4), crimson,
+  [0, -0.45, 0.265], [0, 0, Math.PI]);
+for (const side of [-1, 1]) {
+  const tag = mesh(body, new THREE.BoxGeometry(0.045, 0.22, 0.018), leather,
+    [side * 0.26, -0.69, 0.17], [0, 0, side * -0.12]);
+  mesh(body, new THREE.SphereGeometry(0.018, 8, 6), crimson,
+    [side * 0.26, -0.59, 0.19]);
 }
 
 const footWorldPosition = new THREE.Vector3();
