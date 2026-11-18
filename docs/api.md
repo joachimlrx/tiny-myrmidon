@@ -131,3 +131,10 @@ When `SCORE_STORE_PATH` is configured, the API loads the leaderboard from a JSON
 This provides persistence across API pod restarts for the single-replica deployment. It is not a multi-replica database: keep the API at one replica while using the file store. For horizontal scaling or concurrent writers across pods, migrate the store to PostgreSQL.
 
 If the file is missing, the API starts with an empty leaderboard. If it contains invalid JSON, startup fails rather than silently discarding existing data. Back up the PVC before making storage changes.
+
+
+## 5. Score integrity and limits
+
+Score validation rejects malformed names, impossible wave values and scores above a configured plausibility bound. This is abuse filtering, not a server-authoritative anti-cheat system: the browser still reports the final score and wave, so a modified client can fabricate a plausible result.
+
+Do not use this anonymous endpoint for a prize-bearing or competitive leaderboard. That requires authenticated run sessions and server-authoritative gameplay validation (or replay verification) before a score can be trusted.
