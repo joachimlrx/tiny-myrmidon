@@ -310,6 +310,8 @@ for (let index = 0; index < 10; index += 1) {
   torches.push({ flame, innerFlame, light, phase: angle });
 }
 
+const bannerCloths = [];
+
 for (let index = 0; index < 2; index += 1) {
   const banner = new THREE.Group();
   banner.position.set(index ? -16.8 : 16.8, 0, -18.8);
@@ -324,9 +326,15 @@ for (let index = 0; index < 2; index += 1) {
     emissive: index ? 0x101d28 : 0x260b0e,
     emissiveIntensity: 0.06
   });
-  const cloth = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 2.9, 8, 10), clothMaterial);
+  const clothGeometry = new THREE.PlaneGeometry(1.9, 2.9, 12, 14);
+  const cloth = new THREE.Mesh(clothGeometry, clothMaterial);
   cloth.position.set(0, 4.55, 0);
   cloth.rotation.y = Math.PI;
+  bannerCloths.push({
+    geometry: clothGeometry,
+    basePositions: Float32Array.from(clothGeometry.attributes.position.array),
+    phase: index * Math.PI,
+  });
   banner.add(pole, cloth);
   scene.add(banner);
 }
@@ -342,6 +350,24 @@ export function resizeScene(width, height) {
 }
 
 export function updateScene(dt, time) {
+  // The free edge of each banner catches a gentle, continuous arena breeze.
+  for (const banner of bannerCloths) {
+    const positions = banner.geometry.attributes.position;
+    for (let vertex = 0; vertex < positions.count; vertex += 1) {
+      const offset = vertex * 3;
+      const x = banner.basePositions[offset];
+      const y = banner.basePositions[offset + 1];
+      const baseZ = banner.basePositions[offset + 2];
+      const freeEdge = THREE.MathUtils.clamp((x + 0.95) / 1.9, 0, 1);
+      const lowerEdge = THREE.MathUtils.clamp((1.45 - y) / 2.9, 0, 1);
+      const amplitude = freeEdge * (0.035 + lowerEdge * 0.12);
+      const wave = Math.sin(time * 2.35 + y * 1.45 + banner.phase);
+      positions.setZ(vertex, baseZ + wave * amplitude);
+    }
+    positions.needsUpdate = true;
+    banner.geometry.computeVertexNormals();
+  }
+
   for (const torch of torches) {
     const pulse = Math.sin(time * 8 + torch.phase);
     torch.flame.scale.set(0.9 + pulse * 0.08, 0.88 + pulse * 0.2, 0.9 + pulse * 0.08);

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { scene } from './scene.js';
 
 export const player = new THREE.Group();
@@ -194,6 +195,7 @@ for (const side of [-1, 1]) {
 }
 
 const capeGeometry = new THREE.PlaneGeometry(1.08, 1.35, 8, 10);
+const capeBasePositions = Float32Array.from(capeGeometry.attributes.position.array);
 const capePositions = capeGeometry.attributes.position;
 for (let index = 0; index < capePositions.count; index += 1) {
   const x = capePositions.getX(index);
@@ -250,6 +252,9 @@ spearRig.add(spearTip);
 
 player.userData = {
   body,
+  crest,
+  capeGeometry,
+  capeBasePositions,
   head,
   legs,
   arms,
@@ -267,6 +272,76 @@ player.userData = {
 };
 player.scale.setScalar(1.1);
 scene.add(player);
+
+// Prefer the bundled, rigged GLTF asset; the handcrafted Three.js model above
+// remains visible as a resilient fallback if the asset cannot be loaded.
+const gltfLoader = new GLTFLoader();
+gltfLoader.load(
+  './models/myrmidon.gltf',
+  (gltf) => {
+    const model = gltf.scene;
+    model.name = 'MyrmidonGLTF';
+    model.traverse((object) => {
+      if (!object.isMesh) return;
+      object.castShadow = true;
+      object.receiveShadow = true;
+      if (object.material) {
+        object.material.envMapIntensity = 0.85;
+      }
+    });
+
+    for (const child of player.children) {
+      if (child !== shadow) child.visible = false;
+    }
+    player.add(model);
+    window.__myrmidonModelLoaded = true;
+
+    const mixer = new THREE.AnimationMixer(model);
+    const clips = new Map(gltf.animations.map((clip) => [clip.name, clip]));
+    const runClip = clips.get('Run');
+    const attackClip = clips.get('SpearAttack');
+    const capeClip = clips.get('CapeFlutter');
+
+    const runAction = runClip ? mixer.clipAction(runClip) : null;
+    if (runAction) {
+      runAction.setLoop(THREE.LoopRepeat, Infinity);
+      runAction.play();
+      runAction.setEffectiveWeight(0);
+    }
+
+    const attackAction = attackClip ? mixer.clipAction(attackClip) : null;
+    if (attackAction) {
+      attackAction.setLoop(THREE.LoopOnce, 1);
+      attackAction.setDuration(0.82);
+      attackAction.clampWhenFinished = true;
+      if (player.userData.attackTimer > 0) {
+        attackAction.reset().play();
+        player.userData.gltfAttackActive = true;
+      }
+    }
+
+    const capeAction = capeClip ? mixer.clipAction(capeClip) : null;
+    if (capeAction) {
+      capeAction.setLoop(THREE.LoopRepeat, Infinity);
+      capeAction.setEffectiveWeight(0.72);
+      capeAction.play();
+    }
+
+    Object.assign(player.userData, {
+      gltfModel: model,
+      gltfMixer: mixer,
+      gltfRunAction: runAction,
+      gltfAttackAction: attackAction,
+      gltfCapeAction: capeAction,
+      gltfCrest: model.getObjectByName('Crest'),
+      gltfReady: true
+    });
+  },
+  undefined,
+  (error) => {
+    console.warn('Could not load the bundled Myrmidon GLTF; using the procedural model.', error);
+  }
+);
 
 export const orbitalGroup = new THREE.Group();
 const orbitalMaterial = new THREE.MeshPhysicalMaterial({
@@ -303,6 +378,10 @@ export function triggerPlayerAttack(mode = 'throw') {
   data.attackMode = mode;
   data.attackDuration = mode === 'thrust' ? 0.68 : 0.88;
   data.attackTimer = data.attackDuration;
+  if (data.gltfAttackAction) {
+    data.gltfAttackAction.reset().play();
+    data.gltfAttackActive = true;
+  }
 }
 
 export function triggerPlayerHit() {
@@ -313,6 +392,9 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
   const data = player.userData;
   data.animationTime += dt;
   data.moveBlend = THREE.MathUtils.damp(data.moveBlend, moving ? 1 : 0, 9, dt);
+  data.gltfRunAction?.setEffectiveWeight(data.moveBlend);
+  data.gltfRunAction?.setEffectiveTimeScale(0.82 + data.moveBlend * 0.48);
+  data.gltfMixer?.update(dt);
   data.twoHandBlend = THREE.MathUtils.damp(data.twoHandBlend, oneHanded ? 0 : 1, 13, dt);
 
   const gaitSpeed = 5.2 + data.moveBlend * 7.2;
@@ -352,6 +434,22 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
   data.cape.rotation.x = 0.04 + data.moveBlend * 0.13
     + Math.sin(data.animationTime * 4.1) * 0.025;
   data.cape.rotation.z = -stride * 0.075 * data.moveBlend;
+  const capeAttribute = data.capeGeometry.attributes.position;
+  for (let vertex = 0; vertex < capeAttribute.count; vertex += 1) {
+    const offset = vertex * 3;
+    const x = data.capeBasePositions[offset];
+    const y = data.capeBasePositions[offset + 1];
+    const freeEdge = THREE.MathUtils.clamp((0.675 - y) / 1.35, 0, 1);
+    const wave = Math.sin(data.animationTime * 5.2 + x * 5.5 + y * 2.8);
+    const flutter = freeEdge * (0.025 + data.moveBlend * 0.07);
+    capeAttribute.setZ(vertex, data.capeBasePositions[offset + 2] + wave * flutter);
+  }
+  capeAttribute.needsUpdate = true;
+  data.capeGeometry.computeVertexNormals();
+  const crestSway = -0.08 + Math.sin(data.animationTime * 3.1) * 0.035
+    - stride * 0.045 * data.moveBlend;
+  data.crest.rotation.z = crestSway;
+  if (data.gltfCrest) data.gltfCrest.rotation.z = crestSway * 0.7;
 
   spearRig.position.lerpVectors(oneHandSpearPosition, twoHandSpearPosition, twoHands);
   data.shieldRig.position.lerpVectors(shieldGuardPosition, shieldStowPosition, twoHands);
@@ -371,6 +469,10 @@ export function updatePlayerAnimation(dt, moving, state, oneHanded = false) {
 
   data.attackTimer = Math.max(0, data.attackTimer - dt);
   const attacking = data.attackTimer > 0;
+  if (!attacking && data.gltfAttackActive) {
+    data.gltfAttackAction?.fadeOut(0.12);
+    data.gltfAttackActive = false;
+  }
   const progress = attacking ? 1 - data.attackTimer / data.attackDuration : 0;
   const anticipation = attacking
     ? 1 - THREE.MathUtils.smoothstep(progress, 0.08, 0.34)
