@@ -117,22 +117,42 @@ curl -i -X POST http://localhost:8080/api/scores \
 }
 ```
 
-### Error Response (`400 Bad Request`)
-Returned if `player_name` is empty, contains only spaces, or exceeds 30 characters.
-```text
-HTTP/1.1 400 Bad Request
+### Error Responses
+
+All score-submission errors use the same JSON shape: `error` is a stable machine-readable code and `message` is a human-readable explanation.
+
+| Status | Error code | When it is returned |
+| :--- | :--- | :--- |
+| `400 Bad Request` | `invalid_json` | The body is malformed JSON or does not contain the required fields with the expected types. |
+| `400 Bad Request` | `invalid_score` | The score fails name, wave, or plausibility validation. |
+| `429 Too Many Requests` | `rate_limit_exceeded` | The client exceeds 10 submissions per 10-second window. |
+| `500 Internal Server Error` | `persistence_failed` | The leaderboard could not be saved. |
+
+Example (`400 Bad Request`):
+```json
+{
+  "error": "invalid_score",
+  "message": "Player name cannot be empty"
+}
 ```
 
 
 ## 4. Persistence and deployment
 
-When `SCORE_STORE_PATH` is configured, the API loads the leaderboard from a JSON file at startup and atomically replaces that file after each accepted score. The Kubernetes manifest mounts a `ReadWriteOnce` PVC at `/data` and sets the path to `/data/scores.json`.
+When `SCORE_STORE_PATH` is configured, the API loads the leaderboard from a JSON file at startup and writes and synchronizes a temporary file, atomically replaces that file, and synchronizes the parent directory after each accepted score. This improves durability across process or host crashes on filesystems that honor `fsync`. The Kubernetes manifest mounts a `ReadWriteOnce` PVC at `/data` and sets the path to `/data/scores.json`.
 
 This provides persistence across API pod restarts for the single-replica deployment. It is not a multi-replica database: keep the API at one replica while using the file store. For horizontal scaling or concurrent writers across pods, migrate the store to PostgreSQL.
 
-The Kubernetes deployment sets `TRUSTED_PROXY_HOPS=1`. The API only trusts the rightmost client address in `X-Forwarded-For` when this value is positive; the matching NetworkPolicies restrict pod ingress to the Traefik controller in `kube-system`. Outside that deployment, the default is `0`, which ignores forwarding headers and groups unidentifiable clients under one conservative rate-limit key.
+The Kubernetes deployment sets `TRUSTED_PROXY_HOPS=1`. The API selects the client address immediately before the configured trusted proxy hops in `X-Forwarded-For`; the matching NetworkPolicies restrict pod ingress to Traefik in `kube-system`. When the setting is `0`, forwarding headers are ignored and the TCP peer address supplied by Axum is used. Configure the hop count to match the actual proxy chain.
 
 If the file is missing, the API starts with an empty leaderboard. If it contains invalid JSON, startup fails rather than silently discarding existing data. Back up the PVC before making storage changes.
+
+To export the current leaderboard before a storage change, run this from a machine with access to the cluster:
+
+```bash
+POD=$(kubectl get pods -l app=tiny-myrmidon-api -o jsonpath='{.items[0].metadata.name}')
+kubectl exec "$POD" -- cat /data/scores.json > scores-backup.json
+```
 
 
 ## 5. Score integrity and limits

@@ -147,6 +147,21 @@ jobs:
             echo "Checking $script"
             node --input-type=module --check < "$script"
           done
+          node --check scripts/load-test.mjs
+
+      - name: Generate API image SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: tiny-myrmidon-api:ci
+          format: spdx-json
+          artifact-name: tiny-myrmidon-api-sbom
+
+      - name: Generate Game image SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: tiny-myrmidon-game:ci
+          format: spdx-json
+          artifact-name: tiny-myrmidon-game-sbom
 
 
   browser-smoke:

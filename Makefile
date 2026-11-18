@@ -1,4 +1,4 @@
-.PHONY: build check clean deploy fmt help k3d-up logs status stop tunnel
+.PHONY: build check clean deploy fmt help k3d-up logs status stop test tunnel
 .DEFAULT_GOAL := help
 
 CLUSTER_NAME = tiny-myrmidon

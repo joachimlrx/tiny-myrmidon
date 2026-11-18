@@ -39,7 +39,7 @@ graph TD
 ## 2. Component Breakdown
 
 ### 2.1. Frontend Game (`game/`)
-* **Core Technology:** Three.js (r169) rendered via WebGL directly in modern browsers.
+* **Core Technology:** Three.js (r169) rendered via WebGL directly in modern browsers. The import map pins the CDN version and provides an integrity hash for the core module; the addon modules remain a runtime dependency on unpkg. The Nginx Content Security Policy allowlists that host for module loading while keeping API connections restricted to the same origin. A local bundle would remove the CDN availability dependency, but is deferred until the project adopts a frontend build/vendor workflow.
 * **Architecture:**
   * Procedural circular arena bounded by 16 Doric Greek peristyle columns.
   * Deterministic tick-based game loop handling:
@@ -86,7 +86,7 @@ graph TD
 
 ## 5. Leaderboard persistence
 
-The API can persist its sorted top-50 leaderboard to a JSON file through `SCORE_STORE_PATH`. Writes are serialized with the in-memory leaderboard lock, written to a temporary file and renamed into place. The Kubernetes deployment mounts a `ReadWriteOnce` local-path PVC at `/data`.
+The API can persist its sorted top-50 leaderboard to a JSON file through `SCORE_STORE_PATH`. Writes are serialized with the in-memory leaderboard lock, written to a temporary file, flushed with `fsync`, renamed into place, and followed by a parent-directory `fsync`. The Kubernetes deployment mounts a `ReadWriteOnce` local-path PVC at `/data`.
 
 This intentionally supports one API replica. A file-backed volume is not a substitute for a shared transactional database: do not scale the API horizontally until the persistence layer has been replaced by PostgreSQL or another shared database.
 
@@ -94,3 +94,24 @@ This intentionally supports one API replica. A file-backed volume is not a subst
 ## 6. Network boundary
 
 The game and API NetworkPolicies accept ingress only from Traefik pods labelled `app.kubernetes.io/name=traefik` in the `kube-system` namespace. The API is configured for one trusted proxy hop; keep the setting aligned with the actual ingress chain if the topology changes.
+
+
+## 7. Component boundaries and API contract
+
+The repository has three deployable boundaries:
+
+- **Game frontend (game/)** owns rendering, input, game state and presentation. It communicates with the backend only through the public HTTP endpoints; it does not import Rust code or access the persistence volume.
+- **Leaderboard API (api/)** owns request validation, rate limiting, leaderboard ordering and persistence. Its Rust modules separate bootstrap, HTTP handlers, shared application state and domain models.
+- **Deployment (k8s/, Dockerfiles and Nginx configuration)** owns container packaging, routing, network boundaries, resource limits and persistent-volume attachment. It consumes the frontend and API images rather than embedding application logic.
+
+The HTTP boundary is documented in api.md and exercised by the API integration tests. The current contract is intentionally small: health, leaderboard reads and score submissions. The API schema is maintained manually rather than generated from OpenAPI, so changes to handlers must update the reference and its contract tests in the same change.
+
+This is a clear separation of responsibilities, but not proof of complete independence. Changes to endpoint paths, payload fields, validation rules or deployment routing can still affect multiple components. Keep those contracts explicit and test both sides when they change.
+
+## 8. Scaling, rate limiting and operational visibility
+
+The API deployment intentionally runs one replica. Its rate limiter is process-local and its JSON store is attached to a single-writer ReadWriteOnce volume. Neither mechanism is shared between replicas. Do not increase the API replica count until the rate-limit state and leaderboard persistence have been moved to shared services (for example Redis and PostgreSQL).
+
+The API currently emits structured request and application logs through tracing. It does not expose Prometheus metrics or ship with Grafana dashboards. For this small single-replica deployment, structured logs and Kubernetes resource limits remain the baseline; add metrics and alerting when operational needs justify a monitoring stack.
+
+A dependency-free Node load probe is available at scripts/load-test.mjs. It exercises read-only leaderboard requests against a running deployment and reports latency percentiles and failures. It is a repeatable smoke/load probe, not a substitute for a production capacity test.

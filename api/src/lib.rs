@@ -20,7 +20,10 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
-use tokio::sync::{Mutex, RwLock};
+use tokio::{
+    io::AsyncWriteExt,
+    sync::{Mutex, RwLock},
+};
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
     trace::TraceLayer,
@@ -107,8 +110,13 @@ impl AppState {
         let contents = serde_json::to_vec(scores)
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
 
-        tokio::fs::write(&temporary_path, contents).await?;
-        tokio::fs::rename(&temporary_path, path).await
+        let mut temporary_file = tokio::fs::File::create(&temporary_path).await?;
+        temporary_file.write_all(&contents).await?;
+        temporary_file.sync_all().await?;
+        drop(temporary_file);
+
+        tokio::fs::rename(&temporary_path, path).await?;
+        tokio::fs::File::open(parent).await?.sync_all().await
     }
 
     pub async fn check_rate_limit(&self, client_ip: &str) -> bool {
