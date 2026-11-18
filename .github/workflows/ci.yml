@@ -63,6 +63,11 @@ jobs:
           deployments = {d['metadata']['name']: d for d in docs if d.get('kind') == 'Deployment'}
           api = deployments['tiny-myrmidon-api']['spec']['template']['spec']['containers'][0]
           sec = api.get('securityContext', {})
+          game_pod = deployments['tiny-myrmidon-game']['spec']['template']['spec']
+          game_sec = game_pod['containers'][0].get('securityContext', {})
+          assert game_pod.get('securityContext', {}).get('fsGroup') == 101, 'Game pod must set fsGroup: 101 for Nginx emptyDir volumes'
+          assert game_sec.get('runAsUser') == 101, 'Game container must run as UID 101'
+          assert game_sec.get('runAsNonRoot') is True, 'Game container must set runAsNonRoot: true'
           assert sec.get('runAsNonRoot') is True, 'API must set runAsNonRoot: true'
           assert sec.get('readOnlyRootFilesystem') is True, 'API must set readOnlyRootFilesystem: true'
           assert sec.get('allowPrivilegeEscalation') is False, 'API must forbid privilege escalation'

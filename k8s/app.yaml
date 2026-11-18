@@ -12,6 +12,10 @@ spec:
       labels:
         app: tiny-myrmidon-game
     spec:
+      # Make emptyDir volumes writable by the unprivileged Nginx worker (UID/GID 101).
+      securityContext:
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: game
           image: tiny-myrmidon-game:v1

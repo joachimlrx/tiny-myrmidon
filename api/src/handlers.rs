@@ -70,6 +70,7 @@ fn extract_client_ip(
         .filter(|address| !address.is_empty())
         .collect();
 
+    // X-Forwarded-For omits the socket peer; skip one entry per trusted proxy hop.
     let Some(index) = addresses.len().checked_sub(trusted_proxy_hops) else {
         return "unknown".to_string();
     };
@@ -175,7 +176,7 @@ mod client_ip_tests {
     }
 
     #[test]
-    fn selects_the_client_address_before_the_trusted_proxy_chain() {
+    fn selects_address_by_configured_trusted_proxy_hop_count() {
         let mut headers = HeaderMap::new();
         headers.insert(
             "x-forwarded-for",
@@ -184,6 +185,14 @@ mod client_ip_tests {
 
         assert_eq!(extract_client_ip(&headers, 1, None), "198.51.100.42");
         assert_eq!(extract_client_ip(&headers, 2, None), "203.0.113.200");
+    }
+
+    #[test]
+    fn accepts_a_single_forwarded_address_for_one_trusted_proxy() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-forwarded-for", "203.0.113.200".parse().unwrap());
+
+        assert_eq!(extract_client_ip(&headers, 1, None), "203.0.113.200");
     }
 
     #[test]
