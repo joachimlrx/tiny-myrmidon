@@ -163,7 +163,7 @@ function createTassetGeometry(width, height) {
       if (row < down && col < across) {
         const a = row * (across + 1) + col;
         const b = a + across + 1;
-        indices.push(a, a + 1, b, a + 1, b + 1, b);
+        indices.push(a, b, a + 1, a + 1, b, b + 1);
       }
     }
   }
