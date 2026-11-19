@@ -5,6 +5,7 @@
  * that can change while the current game is running.
  */
 export const state = {
+  fps: 60,
   // Player resources.
   hp: 100,
   maxHp: 100,

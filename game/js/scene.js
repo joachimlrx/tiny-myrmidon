@@ -12,42 +12,42 @@ export const camera = new THREE.PerspectiveCamera(43, innerWidth / innerHeight, 
 camera.position.set(0, 7.85, 7.8);
 
 export const renderer = new THREE.WebGLRenderer({
-  antialias: true,
+  antialias: false,
   powerPreference: 'high-performance'
 });
-renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
+renderer.setPixelRatio(1);
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = false;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.94;
+renderer.toneMappingExposure = 1.32;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.physicallyCorrectLights = true;
 document.body.appendChild(renderer.domElement);
 
 // A neutral studio environment gives bronze, steel and obsidian something real to reflect.
-const pmremGenerator = new THREE.PMREMGenerator(renderer);
-const roomEnvironment = new RoomEnvironment();
-scene.environment = pmremGenerator.fromScene(roomEnvironment, 0.04).texture;
-roomEnvironment.dispose();
-pmremGenerator.dispose();
+// Carte d'environnement métallique ultra-légère pour faire briller le bronze et l'acier à 60 FPS
+const envData = new Uint8Array([
+  225, 240, 255, 255,  255, 246, 226, 255,
+  196, 174, 142, 255,  156, 134, 108, 255
+]);
+const envTex = new THREE.DataTexture(envData, 2, 2, THREE.RGBAFormat);
+envTex.mapping = THREE.EquirectangularReflectionMapping;
+envTex.colorSpace = THREE.SRGBColorSpace;
+envTex.needsUpdate = true;
+scene.environment = envTex;
 
 export const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-composer.addPass(new UnrealBloomPass(
-  new THREE.Vector2(innerWidth, innerHeight),
-  0.08,
-  0.12,
-  1.18
-));
+// UnrealBloomPass desactive pour garder 60 FPS constants
 composer.setSize(innerWidth, innerHeight);
 
-scene.add(new THREE.HemisphereLight(0xdce8f0, 0x76624b, 1.05));
+scene.add(new THREE.HemisphereLight(0xf5f9ff, 0xc4aa84, 1.95));
 
-const sun = new THREE.DirectionalLight(0xffe4c2, 2.1);
+const sun = new THREE.DirectionalLight(0xfff3de, 3.35);
 sun.position.set(-18, 34, 12);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(1024, 1024);
 sun.shadow.camera.left = -24;
 sun.shadow.camera.right = 24;
 sun.shadow.camera.top = 24;
@@ -58,11 +58,11 @@ sun.shadow.bias = -0.00018;
 sun.shadow.normalBias = 0.028;
 scene.add(sun);
 
-const rim = new THREE.DirectionalLight(0xd7e2ec, 0.42);
+const rim = new THREE.DirectionalLight(0xfff6e8, 1.35);
 rim.position.set(13, 10, -16);
 scene.add(rim);
 
-const warmFill = new THREE.PointLight(0xe6c9a8, 1.1, 32, 2);
+const warmFill = new THREE.PointLight(0xffe6c4, 2.4, 44, 1.3);
 warmFill.position.set(0, 5, 0);
 scene.add(warmFill);
 
@@ -75,7 +75,7 @@ function createStoneTexture() {
   context.fillStyle = '#b7a98f';
   context.fillRect(0, 0, 512, 512);
 
-  for (let index = 0; index < 22000; index += 1) {
+  for (let index = 0; index < 4000; index += 1) {
     const light = Math.random() > 0.52;
     const alpha = 0.025 + Math.random() * 0.08;
     context.fillStyle = light
@@ -106,9 +106,8 @@ function createStoneTexture() {
 }
 
 const stoneTexture = createStoneTexture();
-const bumpTexture = stoneTexture.clone();
-bumpTexture.colorSpace = THREE.NoColorSpace;
-bumpTexture.needsUpdate = true;
+const bumpTexture = null;
+
 
 const gold = new THREE.MeshPhysicalMaterial({
   color: 0xb98a54,
@@ -376,4 +375,14 @@ export function updateScene(dt, time) {
   }
   sigilCore.rotation.y += dt * 0.2;
   sigilCore.position.y = 0.43 + Math.sin(time * 1.6) * 0.045;
+}
+
+
+// Forcer le focus permanent sur le renderer pour éviter que l'OS ne piège les touches maintenues
+if (renderer && renderer.domElement) {
+  renderer.domElement.tabIndex = 1;
+  renderer.domElement.style.outline = 'none';
+  window.addEventListener('click', () => {
+    renderer.domElement.focus();
+  });
 }

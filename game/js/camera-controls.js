@@ -17,7 +17,7 @@ const INTERACTIVE_SELECTOR = [
   'select',
   'a',
   '[contenteditable="true"]',
-  '#hud',
+
   '#pause-modal',
   '#upgrade-modal',
   '#gameover-modal',
@@ -137,5 +137,6 @@ export function createCameraControls(camera) {
   return {
     update,
     toWorldDirection,
+    getYaw: () => yaw,
   };
 }

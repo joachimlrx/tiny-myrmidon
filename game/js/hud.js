@@ -7,6 +7,19 @@ function setBarWidth(elementId, percentage) {
 }
 
 export function updateHud(state, isTouchDevice) {
+  // Ajout d'un pad de contrôle virtuel cliquable à la souris pour contourner les blocages clavier
+  
+  const oldDebug = document.getElementById('fps-display');
+  if (oldDebug) oldDebug.remove();
+
+  const fpsEl = document.getElementById('fps-value');
+  const foesEl = document.getElementById('foes-value');
+  if (fpsEl) fpsEl.textContent = Math.round(state.fps || 60) + ' FPS';
+  if (foesEl) {
+    const n = state.enemiesCount || 0;
+    foesEl.textContent = n + (n === 1 ? ' FOE' : ' FOES');
+  }
+
   const healthPercentage = (state.hp / state.maxHp) * 100;
   const experiencePercentage = (state.xp / state.nextXp) * 100;
   const cooldownPercentage =

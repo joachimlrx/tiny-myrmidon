@@ -1,350 +1,279 @@
 import * as THREE from 'three';
-
-import {
-  ARENA_RADIUS,
-  FRAME_DT_CAP,
-  CAMERA_TARGET_HEIGHT,
-  MAX_ENEMIES,
-  SPAWN_INTERVAL_BASE,
-  SPAWN_INTERVAL_MIN,
-  SPAWN_LEVEL_SCALE,
-} from './config.js';
-
-import { scene, camera, composer, updateScene, arenaObstacles } from './scene.js';
+import { scene, camera, renderer, updateScene } from './scene.js';
 import { state } from './state.js';
 import {
   player,
-  orbitalGroup,
-  orbShieldMesh,
+  spearTip,
   updatePlayerAnimation,
+  triggerPlayerAttack,
+  triggerPlayerHit,
 } from './player.js';
-import {
-  enemies,
-  spawnEnemy,
-  updateEnemies,
-  updateEnemyEffects,
-  applyEnemyDamage,
-} from './enemies.js';
-import { fireSpears, tickFireTimer, updateSpears } from './weapons.js';
-import { spawnGem, updateGems } from './gems.js';
-import { showUpgrades } from './upgrades.js';
-import { updateHud, announceWave } from './hud.js';
-import {
-  keys,
-  touchState,
-  isTouchDevice,
-  resetTouch,
-  initInput,
-} from './input.js';
-import { initLeaderboardSubmit } from './leaderboard.js';
+import { keys, initInput, resetTouch } from './input.js';
 import { createCameraControls } from './camera-controls.js';
+import { updateHud } from './hud.js';
+import { initLeaderboardSubmit } from './leaderboard.js';
 import { spawnFootstepDust, updateParticleEffects } from './particles.js';
+import { createEnemyRenderer } from './enemy-renderer.js';
+import {
+  spawnSpearThrustArc,
+  spawnImpactSparks,
+  updateCombatVFX,
+} from './combat-vfx.js';
 
-const MAX_PLAYER_RADIUS = ARENA_RADIUS - 1;
-const ORBITAL_ROTATION_SPEED = 3.6;
-const ORBITAL_DAMAGE_INTERVAL = 0.22;
-
-const movementInput = new THREE.Vector2();
-const desiredPlayerVelocity = new THREE.Vector2();
-const playerVelocity = new THREE.Vector2();
-const cameraTarget = new THREE.Vector3();
-const footstepPosition = new THREE.Vector3();
-
-// Separate acceleration and braking make the hero responsive without feeling weightless.
-const PLAYER_ACCELERATION = 22;
-const PLAYER_DECELERATION = 16;
-const PLAYER_MIN_SPEED = 0.12;
-const orbitalShieldPosition = new THREE.Vector3();
-const orbitalKnockbackDirection = new THREE.Vector3();
 const cameraControls = createCameraControls(camera);
+const enemyRenderer = createEnemyRenderer(scene);
+const cameraTarget = new THREE.Vector3();
+const cameraPunch = new THREE.Vector3();
+const tipWorldPos = new THREE.Vector3();
+const impactWorldPos = new THREE.Vector3();
 
 let previousFrameTime = performance.now();
 let elapsedGameTime = 0;
-let orbitalDamageTimer = 0;
-let lastAnnouncedWave = state.level;
+let frameCount = 0;
+let lastFpsTime = performance.now();
+let hitstopTimer = 0;
+let dustTimer = 0;
+let gameOverShown = false;
 
-const refreshHud = () => updateHud(state, isTouchDevice);
+const gameWorker = new Worker(new URL('./game.worker.js?v=9', import.meta.url));
 
-function showUpgradeSelection() {
-  showUpgrades(state, orbitalGroup, resetTouch, refreshHud);
+let workerPlayer = { x: 0, z: 0, rotationY: 0 };
+let isMovingFromWorker = false;
+let workerEnemies = [];
+
+function showGameOverScreen() {
+  if (gameOverShown) return;
+  gameOverShown = true;
+  state.over = true;
+  state.paused = true;
+  resetTouch();
+
+  const modal =
+    document.getElementById('gameover-modal') ||
+    document.getElementById('game-over-modal') ||
+    document.querySelector('[data-modal="gameover"]');
+
+  const finalScore =
+    document.getElementById('final-score') ||
+    document.getElementById('gameover-score');
+
+  const summaryText = `${Math.floor(state.score).toLocaleString()} Renown · ${state.kills} Defeated · Wave ${state.wave || 1}`;
+  if (finalScore) {
+    finalScore.textContent = summaryText;
+  }
+
+  if (modal) {
+    modal.hidden = false;
+    modal.removeAttribute('hidden');
+    modal.classList.add('is-visible');
+    modal.style.display = 'flex';
+  }
 }
 
-function startSession() {
-  if (state.started) return;
+function hideGameOverScreen() {
+  gameOverShown = false;
+  const modal =
+    document.getElementById('gameover-modal') ||
+    document.getElementById('game-over-modal') ||
+    document.querySelector('[data-modal="gameover"]');
 
+  if (modal) {
+    modal.classList.remove('is-visible');
+    modal.style.display = '';
+  }
+}
+
+function handleCombatEvents(events) {
+  for (const ev of events) {
+    if (ev.type === 'startThrust') {
+      triggerPlayerAttack('thrust', ev.slow);
+    } else if (ev.type === 'spearTipPierce') {
+      player.updateMatrixWorld(true);
+      spearTip.getWorldPosition(tipWorldPos);
+
+      spawnSpearThrustArc(scene, tipWorldPos, ev.yaw, ev.isTwoHanded);
+      spawnImpactSparks(
+        scene,
+        tipWorldPos,
+        ev.lethal ? 0xff4d4d : (ev.isTwoHanded ? 0xffc857 : 0x9ad8ff),
+        ev.lethal ? 18 : 10
+      );
+
+      const punchStrength = ev.lethal ? 0.22 : (ev.isTwoHanded ? 0.14 : 0.08);
+      cameraPunch.set(Math.sin(ev.yaw) * punchStrength, -0.05, Math.cos(ev.yaw) * punchStrength);
+
+      if (ev.lethal && ev.isTwoHanded) {
+        hitstopTimer = 0.035;
+      }
+    } else if (ev.type === 'shieldBlock') {
+      impactWorldPos.set(ev.x, 1.05, ev.z);
+      spawnImpactSparks(scene, impactWorldPos, 0x6ec6ff, 14);
+    } else if (ev.type === 'playerHit') {
+      triggerPlayerHit();
+      impactWorldPos.set(ev.x, 0.95, ev.z);
+      spawnImpactSparks(scene, impactWorldPos, 0xe63946, 10);
+    } else if (ev.type === 'gameOver') {
+      showGameOverScreen();
+    }
+  }
+}
+
+gameWorker.onmessage = function (e) {
+  const data = e.data;
+  if (!data.player) return;
+
+  workerPlayer = data.player;
+  isMovingFromWorker = data.isMoving;
+  workerEnemies = data.enemies || [];
+  state.enemiesCount = workerEnemies.length;
+
+  if (typeof data.combatProgress === 'number') {
+    state.fireTimer = data.combatProgress > 0 ? (1 - data.combatProgress) * state.fireRate : 0;
+  }
+
+  if (data.stats) {
+    state.hp = data.stats.hp;
+    state.maxHp = data.stats.maxHp;
+    state.kills = data.stats.kills;
+    state.score = data.stats.score;
+    state.wave = data.stats.wave;
+    state.elapsed = data.stats.elapsed;
+    if (data.stats.over || state.hp <= 0) {
+      showGameOverScreen();
+    }
+  }
+
+  if (data.events && data.events.length > 0) {
+    handleCombatEvents(data.events);
+  }
+};
+
+function startSession() {
+  if (state.started && !state.over) return;
+  hideGameOverScreen();
   state.started = true;
   state.paused = false;
-
+  state.over = false;
   document.body.classList.remove('menu-active');
-  refreshHud();
-  announceWave(state.level);
+  gameWorker.postMessage({ start: true });
+}
+
+function restartRun() {
+  hideGameOverScreen();
+  state.started = true;
+  state.paused = false;
+  state.over = false;
+  state.hp = 100;
+  state.maxHp = 100;
+  state.kills = 0;
+  state.score = 0;
+  state.wave = 1;
+  state.elapsed = 0;
+  workerPlayer = { x: 0, z: 0, rotationY: 0 };
+  workerEnemies = [];
+  player.position.set(0, 0, 0);
+  document.body.classList.remove('menu-active');
+  document.getElementById('pause-modal')?.classList.remove('is-visible');
+  resetTouch();
+  gameWorker.postMessage({ reset: true, start: true });
 }
 
 function togglePause() {
-  const upgradeModal = document.getElementById('upgrade-modal');
-  const pauseModal = document.getElementById('pause-modal');
-
   if (!state.started || state.over) return;
-  if (upgradeModal?.classList.contains('is-visible')) return;
-
   state.paused = !state.paused;
-  pauseModal?.classList.toggle('is-visible', state.paused);
-
+  const pauseModal = document.getElementById('pause-modal');
+  if (pauseModal) {
+    pauseModal.classList.toggle('is-visible', state.paused);
+  }
   resetTouch();
-  refreshHud();
 }
 
-/** Combine keyboard and joystick input into one movement vector. */
-function readMovementInput() {
-  const right = keys.d || keys.arrowright;
-  const left = keys.q || keys.a || keys.arrowleft;
-  const down = keys.s || keys.arrowdown;
-  const up = keys.z || keys.w || keys.arrowup;
-
-  movementInput.set(
-    Number(Boolean(right)) - Number(Boolean(left)),
-    Number(Boolean(down)) - Number(Boolean(up)),
-  );
-
-  if (touchState.active) {
-    movementInput.x += touchState.dx;
-    movementInput.y += touchState.dz;
-  }
-
-  return movementInput;
-}
-
-/** Move the hero with acceleration, inertia and collision-aware braking. */
-function updatePlayerMovement(deltaTime) {
-  const direction = cameraControls.toWorldDirection(readMovementInput());
-  const inputLength = direction.length();
-  const hasInput = inputLength > 0.08;
-
-  desiredPlayerVelocity.set(0, 0);
-  if (hasInput) {
-    direction.multiplyScalar(1 / inputLength);
-    desiredPlayerVelocity.set(
-      direction.x * state.speed,
-      direction.y * state.speed,
-    );
-  }
-
-  const response = hasInput ? PLAYER_ACCELERATION : PLAYER_DECELERATION;
-  playerVelocity.lerp(
-    desiredPlayerVelocity,
-    1 - Math.exp(-response * deltaTime),
-  );
-
-  if (playerVelocity.lengthSq() < PLAYER_MIN_SPEED * PLAYER_MIN_SPEED) {
-    playerVelocity.set(0, 0);
-  }
-
-  player.position.y = 0;
-  player.position.x += playerVelocity.x * deltaTime;
-  player.position.z += playerVelocity.y * deltaTime;
-
-  // Face the actual travel direction, including the brief glide after releasing input.
-  if (playerVelocity.lengthSq() > PLAYER_MIN_SPEED * PLAYER_MIN_SPEED) {
-    const targetYaw = Math.atan2(playerVelocity.x, playerVelocity.y);
-    const yawDelta = THREE.MathUtils.euclideanModulo(
-      targetYaw - player.rotation.y + Math.PI,
-      Math.PI * 2
-    ) - Math.PI;
-    player.rotation.y += yawDelta * (1 - Math.exp(-14 * deltaTime));
-  }
-
-  const distanceFromCenter = Math.hypot(player.position.x, player.position.z);
-  if (distanceFromCenter > MAX_PLAYER_RADIUS) {
-    const normalX = player.position.x / distanceFromCenter;
-    const normalZ = player.position.z / distanceFromCenter;
-    player.position.set(
-      normalX * MAX_PLAYER_RADIUS,
-      0,
-      normalZ * MAX_PLAYER_RADIUS,
-    );
-
-    // Remove only the velocity pointing out of the arena.
-    const outwardSpeed = playerVelocity.x * normalX + playerVelocity.y * normalZ;
-    if (outwardSpeed > 0) {
-      playerVelocity.x -= normalX * outwardSpeed;
-      playerVelocity.y -= normalZ * outwardSpeed;
-    }
-  }
-
-  for (const obstacle of arenaObstacles) {
-    const dx = player.position.x - obstacle.x;
-    const dz = player.position.z - obstacle.z;
-    const distanceSquared = dx * dx + dz * dz;
-    const minimumDistance = player.userData.colliderRadius + obstacle.radius;
-
-    if (distanceSquared >= minimumDistance * minimumDistance) continue;
-
-    const distance = Math.sqrt(Math.max(distanceSquared, 1e-8));
-    const normalX = distance > 1e-4 ? dx / distance : 1;
-    const normalZ = distance > 1e-4 ? dz / distance : 0;
-    const penetration = minimumDistance - distance;
-    player.position.x += normalX * penetration;
-    player.position.z += normalZ * penetration;
-
-    // Slide along obstacles instead of continuously pushing into them.
-    const inwardSpeed = playerVelocity.x * normalX + playerVelocity.y * normalZ;
-    if (inwardSpeed < 0) {
-      playerVelocity.x -= normalX * inwardSpeed;
-      playerVelocity.y -= normalZ * inwardSpeed;
-    }
-  }
-
-  return playerVelocity.lengthSq() > PLAYER_MIN_SPEED * PLAYER_MIN_SPEED;
-}
-
-/** Keep the camera focused on the hero while allowing mouse orbit and zoom. */
-function updateCamera(deltaTime) {
-  cameraTarget.set(
-    player.position.x,
-    CAMERA_TARGET_HEIGHT,
-    player.position.z,
-  );
-  cameraControls.update(cameraTarget, deltaTime);
-}
-
-/** Spawn enemies at a pace that increases with the current level. */
-function updateEnemySpawning(deltaTime) {
-  state.spawnTimer -= deltaTime;
-
-  if (state.spawnTimer > 0 || enemies.length >= MAX_ENEMIES) return;
-
-  spawnEnemy(state, scene, player);
-
-  const intervalForLevel =
-    SPAWN_INTERVAL_BASE - (state.level - 1) * SPAWN_LEVEL_SCALE;
-
-  state.spawnTimer = Math.max(SPAWN_INTERVAL_MIN, intervalForLevel);
-}
-
-/** Move the Orbital Aegis and apply its periodic area damage. */
-function updateOrbitalShield(deltaTime) {
-  if (!state.hasOrbital) return;
-
-  orbitalGroup.position.copy(player.position);
-  state.orbitalAngle += ORBITAL_ROTATION_SPEED * deltaTime;
-  orbitalGroup.rotation.y = state.orbitalAngle;
-
-  orbitalDamageTimer -= deltaTime;
-  if (orbitalDamageTimer > 0) return;
-
-  orbitalDamageTimer = ORBITAL_DAMAGE_INTERVAL;
-  orbitalGroup.updateMatrixWorld(true);
-  orbShieldMesh.getWorldPosition(orbitalShieldPosition);
-
-  // Work backwards because defeated enemies are removed from the array.
-  for (let index = enemies.length - 1; index >= 0; index -= 1) {
-    const enemy = enemies[index];
-    const hitDistance = enemy.userData.colliderRadius + 0.5;
-
-    if (
-      enemy.dead ||
-      orbitalShieldPosition.distanceTo(enemy.position) >= hitDistance
-    ) {
-      continue;
-    }
-
-    orbitalKnockbackDirection
-      .subVectors(enemy.position, player.position)
-      .setY(0);
-
-    applyEnemyDamage(
-      enemy,
-      Math.max(1, state.dmg * 0.7),
-      state,
-      scene,
-      spawnGem,
-      orbitalKnockbackDirection,
-    );
-
-    if (!enemy.dead && orbitalKnockbackDirection.lengthSq() > 0) {
-      enemy.userData.knockback.add(
-        orbitalKnockbackDirection.normalize().multiplyScalar(1.1),
-      );
-    }
-  }
-}
-
-/** Update all gameplay systems for one active frame. */
-function updateGame(deltaTime) {
-  const isMoving = updatePlayerMovement(deltaTime);
-  const previousWalkPhase = player.userData.walkPhase;
-
-  updatePlayerAnimation(deltaTime, isMoving, state, Boolean(keys.shift));
-
-  const currentWalkPhase = player.userData.walkPhase;
-  if (isMoving && Math.floor(previousWalkPhase / Math.PI) !== Math.floor(currentWalkPhase / Math.PI)) {
-    const step = player.userData.legs[Math.floor(currentWalkPhase / Math.PI) % player.userData.legs.length];
-    step.foot.getWorldPosition(footstepPosition);
-    footstepPosition.y = 0.035;
-    spawnFootstepDust(scene, footstepPosition);
-  }
-  state.upgradeAuraTimer = Math.max(0, state.upgradeAuraTimer - deltaTime);
-
-  updateEnemySpawning(deltaTime);
-
-  tickFireTimer(deltaTime, state);
-  fireSpears(state, scene, player);
-  updateSpears(deltaTime, state, scene, spawnGem);
-
-  updateOrbitalShield(deltaTime);
-  updateEnemies(deltaTime, state, scene, player);
-  updateGems(
-    deltaTime,
-    state,
-    scene,
-    player,
-    showUpgradeSelection,
-    refreshHud,
-  );
-
-  updateEnemyEffects(deltaTime, scene);
-  updateParticleEffects(scene, deltaTime);
-  refreshHud();
-
-  if (state.level !== lastAnnouncedWave) {
-    lastAnnouncedWave = state.level;
-    announceWave(lastAnnouncedWave);
-  }
-}
-
-/** Render continuously, even while the title screen or pause menu is visible. */
 function renderFrame(currentTime) {
   requestAnimationFrame(renderFrame);
 
-  const elapsedSinceLastFrame = (currentTime - previousFrameTime) / 1000;
-  const deltaTime = Math.min(FRAME_DT_CAP, elapsedSinceLastFrame);
-
+  const rawDt = (currentTime - previousFrameTime) / 1000;
   previousFrameTime = currentTime;
-  elapsedGameTime += deltaTime;
+  if (rawDt > 0.5) return;
 
-  // Camera controls and decorative arena lights remain active in menus.
-  updateScene(deltaTime, elapsedGameTime);
-  updateCamera(deltaTime);
+  const dt = Math.min(0.05, Math.max(0.001, rawDt));
+  elapsedGameTime += dt;
 
-  if (state.paused || state.over) {
-    composer.render();
-    return;
+  let simDt = dt;
+  if (hitstopTimer > 0) {
+    hitstopTimer = Math.max(0, hitstopTimer - dt);
+    simDt = dt * 0.15;
   }
 
-  updateGame(deltaTime);
-  composer.render();
+  const camYaw = cameraControls.getYaw ? cameraControls.getYaw() : 0;
+  gameWorker.postMessage({
+    keys: {
+      forward: Boolean(keys.forward),
+      backward: Boolean(keys.backward),
+      left: Boolean(keys.left),
+      right: Boolean(keys.right),
+      shift: Boolean(keys.shift),
+    },
+    dt: simDt,
+    camYaw,
+    started: Boolean(state.started),
+    paused: Boolean(state.paused),
+  });
+
+  player.position.x = THREE.MathUtils.lerp(player.position.x, workerPlayer.x, 1 - Math.exp(-24 * dt));
+  player.position.y = 0;
+  player.position.z = THREE.MathUtils.lerp(player.position.z, workerPlayer.z, 1 - Math.exp(-24 * dt));
+
+  const angleDiff = Math.atan2(
+    Math.sin(workerPlayer.rotationY - player.rotation.y),
+    Math.cos(workerPlayer.rotationY - player.rotation.y)
+  );
+  player.rotation.y += angleDiff * (1 - Math.exp(-18 * dt));
+
+  if (state.started && !state.paused && !state.over && isMovingFromWorker && !keys.shift) {
+    dustTimer -= dt;
+    if (dustTimer <= 0 && typeof spawnFootstepDust === 'function') {
+      dustTimer = 0.28;
+      spawnFootstepDust(scene, player.position);
+    }
+  }
+
+  updatePlayerAnimation(dt, isMovingFromWorker && !state.over, state, Boolean(keys.shift));
+
+  enemyRenderer.sync(workerEnemies, camera, simDt);
+  updateCombatVFX(scene, dt);
+  updateParticleEffects(scene, dt);
+
+  cameraPunch.lerp(new THREE.Vector3(0, 0, 0), 1 - Math.exp(-14 * dt));
+  cameraTarget.set(
+    player.position.x + cameraPunch.x,
+    2.45 + cameraPunch.y,
+    player.position.z + cameraPunch.z
+  );
+  cameraControls.update(cameraTarget, dt);
+  updateScene(dt, elapsedGameTime);
+
+  frameCount++;
+  if (currentTime - lastFpsTime >= 1000) {
+    state.fps = Math.round((frameCount * 1000) / (currentTime - lastFpsTime));
+    frameCount = 0;
+    lastFpsTime = currentTime;
+  }
+
+  if (typeof updateHud === 'function') {
+    updateHud(state);
+  }
+
+  renderer.render(scene, camera);
 }
 
 function startGame() {
   initInput(state, camera, togglePause, startSession);
   initLeaderboardSubmit(state);
-
-  document.getElementById('start-button')?.addEventListener(
-    'click',
-    startSession,
-  );
-
-  refreshHud();
+  document.getElementById('start-button')?.addEventListener('click', startSession);
+  document.getElementById('resume-btn')?.addEventListener('click', togglePause);
+  document.getElementById('pause-restart-btn')?.addEventListener('click', restartRun);
+  document.getElementById('restart-btn')?.addEventListener('click', restartRun);
+  document.getElementById('play-again-btn')?.addEventListener('click', restartRun);
   requestAnimationFrame(renderFrame);
 }
 

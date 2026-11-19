@@ -1,6 +1,8 @@
 .PHONY: build check clean deploy fmt help k3d-up logs status stop test tunnel
 .DEFAULT_GOAL := help
 
+export PATH := $(HOME)/.cargo/bin:$(PATH)
+
 CLUSTER_NAME = tiny-myrmidon
 PORT = 8080
 

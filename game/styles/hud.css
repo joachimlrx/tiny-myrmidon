@@ -274,3 +274,31 @@
     font-size: 17px;
   }
 }
+
+
+#arena-telemetry {
+  position: fixed;
+  top: 16px;
+  right: 112px;
+  z-index: 7;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid rgba(133, 96, 50, 0.48);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(255, 250, 237, 0.92), rgba(244, 231, 204, 0.84));
+  box-shadow: 0 10px 30px rgba(80, 57, 31, 0.18), inset 0 1px rgba(255, 255, 255, 0.82);
+  color: #58452f;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+#arena-telemetry .telemetry-dot {
+  opacity: 0.45;
+}
