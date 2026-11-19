@@ -34,12 +34,12 @@ function makeClothTexture() {
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#8b101a';
+  ctx.fillStyle = '#9e1422';
   ctx.fillRect(0, 0, size, size);
 
   for (let x = 0; x < size; x += 2) {
     const fold = Math.sin((x / size) * Math.PI * 8) * 0.5 + 0.5;
-    ctx.fillStyle = `rgba(10,0,2,${(1 - fold) * 0.22})`;
+    ctx.fillStyle = `rgba(18,2,4,${(1 - fold) * 0.28})`;
     ctx.fillRect(x, 0, 2, size);
   }
 
@@ -56,53 +56,54 @@ const clothMap = makeClothTexture();
 
 export const materials = {
   darkSteel: new THREE.MeshStandardMaterial({
-    color: 0x1e232d,
-    metalness: 0.78,
-    roughness: 0.36,
-
+    color: 0x222026,
+    metalness: 0.86,
+    roughness: 0.28,
+    bumpMap: metalMaps.bumpMap,
+    bumpScale: 0.008,
   }),
   obsidianPlate: new THREE.MeshStandardMaterial({
-    color: 0x11151c,
-    metalness: 0.82,
-    roughness: 0.34,
+    color: 0x151419,
+    metalness: 0.90,
+    roughness: 0.30,
   }),
   agedBronze: new THREE.MeshStandardMaterial({
-    color: 0xb5873c,
-    metalness: 0.84,
-    roughness: 0.3,
-    emissive: 0x221402,
-    emissiveIntensity: 0.14,
+    color: 0xc4943f,
+    metalness: 0.88,
+    roughness: 0.24,
+    emissive: 0x301804,
+    emissiveIntensity: 0.16,
   }),
   crimsonCloth: new THREE.MeshStandardMaterial({
-    color: 0x9e121e,
+    color: 0xaa1320,
     map: clothMap,
-    roughness: 0.86,
+    roughness: 0.82,
     side: THREE.DoubleSide,
   }),
   leatherStrap: new THREE.MeshStandardMaterial({
-    color: 0x2c170f,
-    metalness: 0.12,
-    roughness: 0.82,
+    color: 0x321a11,
+    metalness: 0.14,
+    roughness: 0.78,
   }),
   ashShaft: new THREE.MeshStandardMaterial({
-    color: 0x261811,
+    color: 0x281912,
     metalness: 0.08,
-    roughness: 0.74,
+    roughness: 0.72,
   }),
   visorGlow: new THREE.MeshBasicMaterial({
-    color: 0xffa822,
+    color: 0xffb834,
   }),
   bladeSteel: new THREE.MeshStandardMaterial({
-    color: 0x455063,
-    metalness: 0.9,
-    roughness: 0.2,
+    color: 0xa4b0be,
+    metalness: 0.94,
+    roughness: 0.18,
   }),
   orbital: new THREE.MeshStandardMaterial({
-    color: 0x9e141f,
-    metalness: 0.48,
-    roughness: 0.24,
-    emissive: 0x650014,
-    emissiveIntensity: 0.42,
+    color: 0xaa1422,
+    metalness: 0.52,
+    roughness: 0.22,
+    emissive: 0x6e0018,
+    emissiveIntensity: 0.44,
   }),
 };
 

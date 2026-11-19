@@ -74,32 +74,66 @@ function createCuirassGeometry() {
   return geometry;
 }
 
+function createCapeGeometry() {
+  const widthTop = 0.58;
+  const widthBottom = 1.28;
+  const length = 1.34;
+  const geo = new THREE.PlaneGeometry(widthTop, length, 12, 16);
+  const pos = geo.attributes.position;
+
+  for (let i = 0; i < pos.count; i += 1) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    // Évasement en trapèze vers le bas (proportions dorées)
+    const factor = (length * 0.5 - y) / length;
+    const flare = THREE.MathUtils.lerp(1.0, widthBottom / widthTop, factor);
+    pos.setX(i, x * flare);
+
+    // Découpes triangulaires héroïques sur l'ourlet inférieur (comme sur l'image)
+    if (y < -length * 0.44) {
+      const tooth = Math.sin(x * 18) * 0.045;
+      pos.setY(i, y + tooth);
+    }
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
 function createShoulderMantle(torso) {
   const mantle = new THREE.Group();
   mantle.position.set(0, 0.62, 0);
   torso.add(mantle);
 
+  // Col épais / Écharpe cramoisie cowl drapée autour du cou
   const collar = addMesh(
     mantle,
-    new THREE.TorusGeometry(0.245, 0.056, 16, 40),
+    new THREE.TorusGeometry(0.26, 0.068, 16, 44),
     materials.crimsonCloth,
-    [0, 0.015, 0.012],
+    [0, 0.02, 0.015],
     [Math.PI * 0.48, 0, 0]
   );
-  collar.scale.set(1.18, 0.92, 0.86);
+  collar.scale.set(1.22, 0.94, 0.92);
 
-  const drapeGeo = new THREE.CylinderGeometry(0.155, 0.225, 0.74, 20, 8, true, Math.PI * 0.82, Math.PI * 0.54);
-  const pos = drapeGeo.attributes.position;
-  for (let i = 0; i < pos.count; i += 1) {
-    const x = pos.getX(i);
-    const y = pos.getY(i);
-    const z = pos.getZ(i);
-    const pleat = Math.sin(x * 22) * 0.01 * ((0.37 - y) / 0.74);
-    pos.setZ(i, z + pleat);
-  }
-  drapeGeo.computeVertexNormals();
-  const backDrape = addMesh(mantle, drapeGeo, materials.crimsonCloth, [0.06, -0.34, -0.01], [0.04, -0.14, 0.06]);
+  // Plis secondaires de l'étoffe drapée sur les clavicules
+  const cowlFold = addMesh(
+    mantle,
+    new THREE.TorusGeometry(0.23, 0.045, 12, 36),
+    materials.crimsonCloth,
+    [0, -0.025, 0.048],
+    [Math.PI * 0.52, 0, 0]
+  );
+  cowlFold.scale.set(1.15, 0.88, 0.95);
 
+  // Grande cape dorsale héroïque découpée au bas (comme sur l'image)
+  const capeGeo = createCapeGeometry();
+  const capePivot = new THREE.Group();
+  capePivot.position.set(0, 0.02, -0.16);
+  capePivot.rotation.set(0.14, Math.PI, 0);
+  mantle.add(capePivot);
+
+  const backDrape = addMesh(capePivot, capeGeo, materials.crimsonCloth, [0, -0.62, 0], [0, 0, 0]);
+
+  // Baudrier en cuir clouté de bronze
   const baldric = addMesh(
     torso,
     new THREE.TorusGeometry(0.268, 0.016, 8, 36),
@@ -110,11 +144,12 @@ function createShoulderMantle(torso) {
   baldric.scale.set(1.12, 0.84, 1.0);
   addMesh(torso, new THREE.BoxGeometry(0.048, 0.054, 0.022), materials.agedBronze, [-0.05, 0.36, 0.232], [-0.08, -0.14, 0.52]);
 
+  // Deux grands médaillons solaires en bronze aux épaules maintenant la cape (comme sur l'image)
   for (const side of [-1, 1]) {
-    createBronzeMedallion(torso, 0.068, [side * 0.248, 0.58, 0.212], [-0.14, side * 0.36, 0]);
+    createBronzeMedallion(torso, 0.076, [side * 0.258, 0.59, 0.218], [-0.14, side * 0.36, 0]);
   }
 
-  return { mantle, backDrape };
+  return { mantle, backDrape, capePivot, capeGeo };
 }
 
 export function buildPlayerRig(player) {
@@ -151,7 +186,7 @@ export function buildPlayerRig(player) {
     addMesh(torso, new THREE.BoxGeometry(0.21, 0.26, 0.028), materials.obsidianPlate, [side * 0.135, 0.42, -0.188], [-0.12, side * 0.2, side * -0.12]);
   }
 
-  const { mantle, backDrape } = createShoulderMantle(torso);
+  const { mantle, backDrape, capePivot, capeGeo } = createShoulderMantle(torso);
 
   // Ceinturon et tassettes articulées
   addMesh(pelvis, new THREE.CylinderGeometry(0.265, 0.285, 0.11, 32), materials.leatherStrap, [0, 0.02, 0.01]);
@@ -406,6 +441,8 @@ export function buildPlayerRig(player) {
     crest,
     mantle,
     backDrape,
+    capePivot,
+    capeGeo,
     arms,
     legs,
     tassets,

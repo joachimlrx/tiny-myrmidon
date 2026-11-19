@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 
-const armorMat = new THREE.MeshStandardMaterial({ color: 0x2b292e, metalness: 0.65, roughness: 0.35 });
-const cloakMat = new THREE.MeshStandardMaterial({ color: 0x7a161e, roughness: 0.75 });
-const bronzeTrimMat = new THREE.MeshStandardMaterial({ color: 0x9e7338, metalness: 0.75, roughness: 0.3 });
-const bladeMat = new THREE.MeshStandardMaterial({ color: 0xc8cfd8, metalness: 0.85, roughness: 0.2 });
-const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff4d2a });
+const armorMat = new THREE.MeshStandardMaterial({ color: 0x242226, metalness: 0.82, roughness: 0.32 });
+const cloakMat = new THREE.MeshStandardMaterial({ color: 0x78121a, roughness: 0.80 });
+const bronzeTrimMat = new THREE.MeshStandardMaterial({ color: 0xba883b, metalness: 0.84, roughness: 0.28 });
+const bladeMat = new THREE.MeshStandardMaterial({ color: 0x9fb0c2, metalness: 0.90, roughness: 0.20 });
+const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff481e });
 const hpBgMat = new THREE.MeshBasicMaterial({ color: 0x111115, transparent: true, opacity: 0.78 });
 const hpFillMat = new THREE.MeshBasicMaterial({ color: 0xd9383a });
 

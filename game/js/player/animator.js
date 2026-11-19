@@ -273,24 +273,47 @@ export function createAnimator(player, rig) {
       tasset.pivot.rotation.x = -forwardThigh * 0.42 * stateData.moveBlend - guard * 0.14;
     }
 
-    // 2. Contre-rotation naturelle du bassin, du buste et de la tête
+    // 2. Contre-rotation anatomique selon Léonard de Vinci (Contrapposto harmonique)
     rig.pelvis.position.z = 0;
-    rig.pelvis.rotation.y = stride * 0.09 * stateData.moveBlend - guard * 0.26;
-    rig.pelvis.rotation.z = -stride * 0.035 * stateData.moveBlend;
+    rig.pelvis.rotation.y = stride * 0.12 * stateData.moveBlend - guard * 0.28;
+    rig.pelvis.rotation.z = -stride * 0.045 * stateData.moveBlend;
 
-    rig.torso.rotation.x = 0.08 * stateData.moveBlend + guard * 0.06 + breath * 0.014 * idleWeight;
-    rig.torso.rotation.y = -stride * 0.13 * stateData.moveBlend - guard * 0.16;
-    rig.torso.rotation.z = stride * 0.035 * stateData.moveBlend;
+    // Torse : inclinaison équilibrée et respiration noble
+    rig.torso.rotation.x = 0.08 * stateData.moveBlend + guard * 0.06 + breath * 0.018 * idleWeight;
+    rig.torso.rotation.y = -stride * 0.16 * stateData.moveBlend - guard * 0.18;
+    rig.torso.rotation.z = stride * 0.048 * stateData.moveBlend;
 
-    rig.head.rotation.x = -0.07 * stateData.moveBlend - guard * 0.05 - breath * 0.012;
-    rig.head.rotation.y = stride * 0.07 * stateData.moveBlend + guard * 0.40;
-    rig.head.rotation.z = -stride * 0.02 * stateData.moveBlend;
+    // Port de tête martial et fier : compense avec noblesse la rotation du buste
+    rig.head.rotation.x = -0.06 * stateData.moveBlend - guard * 0.04 - breath * 0.014;
+    rig.head.rotation.y = stride * 0.09 * stateData.moveBlend + guard * 0.42;
+    rig.head.rotation.z = -stride * 0.025 * stateData.moveBlend;
 
-    // 3. Drapé d'épaules et cimier
-    rig.backDrape.rotation.x = 0.05 + stateData.moveBlend * 0.09 + Math.sin(stateData.animationTime * 4.2) * 0.015;
-    rig.backDrape.rotation.z = 0.06 + stride * 0.03 * stateData.moveBlend;
-    rig.crest.rotation.z = Math.sin(stateData.animationTime * 3.1) * 0.03 + stride * 0.05 * stateData.moveBlend;
-    rig.crest.rotation.x = -0.06 * stateData.moveBlend + doubleStride * 0.02 * stateData.moveBlend;
+    // 3. Physique & Ondulation de la Grande Cape Rouge Cramoisie (Cloth Simulation)
+    if (rig.capePivot) {
+      // Déploiement angulaire au vent selon la vitesse de déplacement
+      const capeSpeedLift = stateData.moveBlend * 0.38;
+      const capeWindFlutter = Math.sin(stateData.animationTime * 6.5) * (0.04 + stateData.moveBlend * 0.08);
+      rig.capePivot.rotation.x = 0.16 + capeSpeedLift + capeWindFlutter;
+      // Balancement inertiel latéral
+      rig.capePivot.rotation.z = Math.sin(phase) * 0.06 * stateData.moveBlend;
+    }
+
+    if (rig.capeGeo && rig.capeGeo.attributes.position) {
+      const pos = rig.capeGeo.attributes.position;
+      const t = stateData.animationTime;
+      for (let i = 0; i < pos.count; i += 1) {
+        const y = pos.getY(i);
+        const depthFactor = THREE.MathUtils.clamp((0.67 - y) / 1.34, 0, 1);
+        const wave = Math.sin(t * 7.2 - y * 3.8) * 0.045 * depthFactor * (0.4 + stateData.moveBlend * 0.8);
+        pos.setZ(i, wave);
+      }
+      pos.needsUpdate = true;
+      rig.capeGeo.computeVertexNormals();
+    }
+
+    // Cimier spartiate au sommet du heaume
+    rig.crest.rotation.z = Math.sin(stateData.animationTime * 3.2) * 0.035 + stride * 0.05 * stateData.moveBlend;
+    rig.crest.rotation.x = -0.06 * stateData.moveBlend + doubleStride * 0.025 * stateData.moveBlend;
 
     // 4. Cinématique d'estocade verticale
     stateData.attackTimer = Math.max(0, stateData.attackTimer - dt);
