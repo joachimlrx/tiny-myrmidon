@@ -17,20 +17,22 @@ The game does not require a separate JavaScript build step.
 | `index.html` | Page structure: title screen, HUD, menus, and Three.js import map |
 | `styles/base.css` | Shared page styles and button defaults |
 | `styles/hud.css` | Health and XP bars, level display, pause button, and keyboard help |
-| `styles/modals.css` | Pause, upgrade, and game-over dialogs |
+| `styles/modals.css` | Pause and game-over dialogs |
 | `styles/joystick.css` | Touch joystick |
 | `styles/menu.css` | Main title screen |
 | `js/config.js` | Fixed tuning values such as distances, speeds, and limits |
 | `js/state.js` | Values that can change during a game session |
 | `js/input.js` | Keyboard input, score-name entry, touch joystick, and pause/restart buttons |
 | `js/camera-controls.js` | Mouse camera orbit, zoom, and camera-relative movement directions |
-| `js/loop.js` | Coordinates all systems on every animation frame |
+| `js/loop.js` | Coordinates rendering, worker synchronization, and combat VFX |
+| `js/game.worker.js` | Off-thread simulation: player physics, enemy waves, combat, and collision math |
+| `js/enemy-renderer.js` | 3D visual representation and smooth interpolation of active enemies |
+| `js/combat-vfx.js` | Procedural spear arcs, impact sparks, and visual feedback |
+| `js/particles.js` | Footstep dust and burst effects |
 | `js/scene.js` | Three.js scene, lighting, camera, environment, and rendering |
-| `js/player.js` | Player model, articulated limbs, and weapon stances |
-| `js/enemies.js` | Enemy creation, movement, damage, and defeat handling |
-| `js/weapons.js` | Spear throws and close-range spear thrusts |
-| `js/gems.js` | Experience orbs, attraction, and level progression |
-| `js/upgrades.js` | Upgrade choices and their effects |
+| `js/player.js` | Player root composition and animator bindings |
+| `js/player/rig.js` | Procedural articulated Myrmidon geometry (helmet, armour, spear, shield) |
+| `js/player/animator.js` | Procedural locomotion, stances, and attack animations |
 | `js/hud.js` | Updates the information displayed on screen |
 | `js/leaderboard.js` | Loads scores and submits new scores to the API |
 
@@ -38,29 +40,27 @@ The game does not require a separate JavaScript build step.
 
 The `renderFrame()` function in `loop.js` is called by `requestAnimationFrame()`.
 
-When the game is active, `updateGame()` performs these steps in order:
+When the game is active, `loop.js` performs these steps in order:
 
-1. Read keyboard or joystick input and move the hero.
-2. Update the hero animation.
-3. Spawn enemies when the spawn timer expires.
-4. Trigger attacks and update spears that are already in flight.
-5. Update the Orbital Aegis, enemies, and experience orbs.
-6. Update the HUD and gameplay effects.
-7. Announce a new wave when the level changes.
+1. Send keyboard and camera yaw inputs to `game.worker.js`.
+2. Interpolate player and enemy transforms received from the simulation worker.
+3. Update player character animations and footstep dust.
+4. Synchronize 3D enemy models via `enemy-renderer.js`.
+5. Update combat visual effects and particles.
+6. Smoothly track camera target with attack punch reactions.
+7. Render the Three.js scene and update telemetry HUD.
 
-While the game is paused or over, gameplay updates stop but the scene continues to render. Camera controls remain available.
+While the game is paused or over, gameplay simulation stops while camera controls and scene rendering remain interactive.
 
 ## Where to Make Changes
 
-- To adjust a distance, speed, or limit, start with `config.js`.
-- To change the initial values for a new game, edit `state.js`.
-- To change movement or keyboard bindings, edit `input.js` and the movement functions in `loop.js`.
-- To change spear attacks, edit `weapons.js`.
-- To change the hero model or its animations, edit `player.js`.
+- To adjust fixed tuning constants, edit `config.js`.
+- To change simulation logic, physics, or enemy waves, edit `game.worker.js`.
+- To change movement or keyboard bindings, edit `input.js`.
+- To change hero geometry, materials, or animations, edit `js/player/`.
 - To change the arena, lighting, or rendering, edit `scene.js`.
 - To change the mouse camera behaviour or sensitivity, edit `camera-controls.js`.
-- To change obstacle collision radii, edit `arenaObstacles` in `scene.js` and the collision resolution in `loop.js` and `enemies.js`.
-- To change upgrades or progression, edit `upgrades.js` and `gems.js`.
+- To change score submission or leaderboard rendering, edit `leaderboard.js`.
 - To change the title screen, edit `index.html` and `styles/menu.css`.
 - To change score submission or leaderboard rendering, edit `leaderboard.js`.
 
