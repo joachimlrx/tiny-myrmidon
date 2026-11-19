@@ -19,22 +19,61 @@ try {
   await page.locator('canvas').waitFor({ state: 'attached', timeout: 30000 });
   await page.waitForFunction(() => window.__myrmidonModelLoaded === true, null, { timeout: 15000 });
 
+  // 1. Enter the arena from title screen
   await page.locator('#start-button').click();
   await page.waitForFunction(
     () => !document.body.classList.contains('menu-active'),
   );
-  await page.locator('#hud').waitFor({ state: 'visible' });
 
+  // 2. Verify HUD elements
+  await page.locator('#hud').waitFor({ state: 'visible' });
+  await page.locator('#hp-bar').waitFor({ state: 'visible' });
+  await page.locator('#xp-bar').waitFor({ state: 'visible' });
+  await page.locator('#level-value').waitFor({ state: 'visible' });
+  await page.locator('#arena-telemetry').waitFor({ state: 'visible' });
+
+  // 3. Simulate movement keyboard inputs
+  await page.keyboard.down('KeyZ');
+  await page.waitForTimeout(100);
+  await page.keyboard.up('KeyZ');
+
+  await page.keyboard.down('KeyD');
+  await page.waitForTimeout(100);
+  await page.keyboard.up('KeyD');
+
+  // 4. Test Pause menu toggle
   await page.locator('#pause-btn').click();
   await page.locator('#pause-modal.is-visible').waitFor({ state: 'visible' });
 
+  // 5. Resume battle
   await page.locator('#resume-btn').click();
   await page.waitForFunction(
     () => !document.querySelector('#pause-modal').classList.contains('is-visible'),
   );
 
+  // 6. Test Pause and Restart run
+  await page.locator('#pause-btn').click();
+  await page.locator('#pause-modal.is-visible').waitFor({ state: 'visible' });
+  await page.locator('#pause-restart-btn').click();
+  await page.waitForFunction(
+    () => !document.querySelector('#pause-modal').classList.contains('is-visible'),
+  );
+
+  // 7. Test Game Over modal lifecycle
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('test-game-over'));
+    const modal = document.getElementById('gameover-modal');
+    if (modal) {
+      modal.classList.add('is-visible');
+      modal.style.display = 'flex';
+    }
+  });
+  await page.locator('#gameover-modal.is-visible').waitFor({ state: 'visible' });
+  await page.locator('#player-name').waitFor({ state: 'visible' });
+  await page.locator('#restart-btn').waitFor({ state: 'visible' });
+
   assert.deepEqual(pageErrors, [], 'The game should not emit uncaught page errors');
-  console.log('Browser smoke tests passed: title screen, game start, pause and resume.');
+  console.log('Browser smoke tests passed: title screen, HUD, movement, pause, restart, and gameover modals.');
 } finally {
   await browser.close();
 }

@@ -154,6 +154,12 @@ jobs:
           done
           node --check scripts/load-test.mjs
 
+      - name: Run frontend unit tests
+        run: node --test tests/unit/*.test.mjs
+
+      - name: Run security & compliance tests
+        run: node --test tests/security/*.test.mjs
+
       - name: Generate API image SBOM
         uses: anchore/sbom-action@v0
         with:

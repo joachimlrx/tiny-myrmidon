@@ -1,4 +1,4 @@
-.PHONY: build check clean deploy fmt help k3d-up logs status stop test tunnel
+.PHONY: build check clean deploy fmt help k3d-up logs status stop test test-api test-security test-unit tunnel
 .DEFAULT_GOAL := help
 
 export PATH := $(HOME)/.cargo/bin:$(PATH)
@@ -20,16 +20,22 @@ build: ## Build minimal Alpine Docker images
 	@docker build -t tiny-myrmidon-game:v1 game/ || \
 		$(call fail,Failed to build Game image.)
 
-check: ## Run Rust, JavaScript, and Kubernetes checks
+check: ## Run Rust, JavaScript, unit, security, and Kubernetes checks
 	@echo "==> Checking formatting..."
 	@cd api && cargo fmt --all -- --check || \
 		$(call fail,Run 'make fmt' to fix formatting.)
 	@echo "==> Running Clippy..."
 	@cd api && cargo clippy --all-targets -- -D warnings || \
 		$(call fail,Fix Clippy warnings above.)
-	@echo "==> Running tests..."
+	@echo "==> Running API tests..."
 	@cd api && cargo test --all || \
 		$(call fail,API tests failed.)
+	@echo "==> Running frontend unit tests..."
+	@node --test tests/unit/*.test.mjs || \
+		$(call fail,Frontend unit tests failed.)
+	@echo "==> Running security & compliance tests..."
+	@node --test tests/security/*.test.mjs || \
+		$(call fail,Security and compliance tests failed.)
 	@echo "==> Checking frontend JavaScript syntax..."
 	@for script in game/js/*.js; do \
 		node --input-type=module --check < "$$script" || exit 1; \
@@ -96,8 +102,19 @@ stop: ## Stop local k3d cluster without deleting it
 	@echo "==> Stopping k3d cluster..."
 	-@k3d cluster stop $(CLUSTER_NAME) 2>/dev/null || true
 
-test: ## Run API tests
+test: test-api test-unit test-security ## Run all test suites (API, frontend unit, and security)
+
+test-api: ## Run Rust API integration and unit tests
+	@echo "==> Running Rust API tests..."
 	@cd api && cargo test --all
+
+test-unit: ## Run frontend unit tests with native Node.js runner
+	@echo "==> Running frontend unit tests..."
+	@node --test tests/unit/*.test.mjs
+
+test-security: ## Run Kubernetes and Docker security tests
+	@echo "==> Running security and compliance tests..."
+	@node --test tests/security/*.test.mjs
 
 tunnel: ## Expose game to mobile devices with instant QR code (Ctrl+C to stop)
 	@bash scripts/tunnel.sh
