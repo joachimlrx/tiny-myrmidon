@@ -270,6 +270,7 @@ function startGame() {
   initInput(state, camera, togglePause, startSession);
   initLeaderboardSubmit(state);
   document.getElementById('start-button')?.addEventListener('click', startSession);
+  document.getElementById('pause-btn')?.addEventListener('click', togglePause);
   document.getElementById('resume-btn')?.addEventListener('click', togglePause);
   document.getElementById('pause-restart-btn')?.addEventListener('click', restartRun);
   document.getElementById('restart-btn')?.addEventListener('click', restartRun);
