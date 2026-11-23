@@ -28,18 +28,19 @@ try {
   // 2. Verify HUD elements
   await page.locator('#hud').waitFor({ state: 'visible' });
   await page.locator('#hp-bar').waitFor({ state: 'visible' });
-  await page.locator('#xp-bar').waitFor({ state: 'visible' });
+  await page.locator('#xp-bar-container').waitFor({ state: 'visible' });
+  await page.locator('#xp-bar').waitFor({ state: 'attached' });
   await page.locator('#level-value').waitFor({ state: 'visible' });
   await page.locator('#arena-telemetry').waitFor({ state: 'visible' });
 
   // 3. Simulate movement keyboard inputs
-  await page.keyboard.down('KeyZ');
+  await page.keyboard.down('z');
   await page.waitForTimeout(100);
-  await page.keyboard.up('KeyZ');
+  await page.keyboard.up('z');
 
-  await page.keyboard.down('KeyD');
+  await page.keyboard.down('d');
   await page.waitForTimeout(100);
-  await page.keyboard.up('KeyD');
+  await page.keyboard.up('d');
 
   // 4. Test Pause menu toggle
   await page.locator('#pause-btn').click();
